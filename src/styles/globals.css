@@ -1,0 +1,81 @@
+/* Altitude — cockpit-grade design tokens */
+:root {
+  --bg: #000000;
+  --bg-1: #060606;
+  --bg-2: #0c0c0c;
+  --bg-3: #141414;
+  --line: #1f1f1f;
+  --line-2: #2a2a2a;
+  --line-3: #3a3a3a;
+  --ink: #f0f0f0;
+  --ink-2: #b4b4b4;
+  --ink-3: #6e6e6e;
+  --ink-4: #444444;
+  --grn: #00FF41;
+  --grn-dim: #00802b;
+  --amb: #FFB000;
+  --amb-dim: #7a5500;
+  --red: #FF3030;
+  --mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --sans: "Inter", -apple-system, "Helvetica Neue", system-ui, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root {
+  margin: 0; padding: 0;
+  height: 100%;
+}
+
+body {
+  background: #0a0a0a;
+  font-family: var(--sans);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Utility */
+.mono { font-family: var(--mono); }
+.num  { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* Blink / pulse animations */
+@keyframes blink  { 0%,60% { opacity:1; } 61%,100% { opacity:0.2; } }
+@keyframes pulse  { 0%,100% { opacity:1; } 50% { opacity:0.35; } }
+.blink { animation: blink 1.2s steps(1,end) infinite; }
+.pulse { animation: pulse 1.4s ease-in-out infinite; }
+
+/* Toast slide-in */
+@keyframes toast-slide {
+  from { opacity: 0; transform: translateX(-50%) translateY(-100%); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* Telemetry scan bar */
+@keyframes telem-scan {
+  0%   { left: -40%; }
+  100% { left: 110%; }
+}
+.telem-scan {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent 0%, var(--grn) 50%, transparent 100%);
+  animation: telem-scan 1s linear infinite;
+}
+
+/* Big primary readout */
+.readout-big {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 56px;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-weight: 500;
+  color: var(--grn);
+}
+.readout-big .sep   { color: var(--grn-dim); }
+.readout-big .cents { color: var(--ink-2); font-size: 24px; vertical-align: 4px; margin-left: 4px; }
+.readout-cur { font-family: var(--mono); font-size: 11px; color: var(--ink-3); letter-spacing: 0.16em; }
+
+/* Caption */
+.cap { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.18em; color: var(--ink-3); text-transform: uppercase; }

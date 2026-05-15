@@ -1,0 +1,1 @@
+-- tickers already included in 0001_initial.sql
