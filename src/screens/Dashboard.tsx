@@ -52,14 +52,14 @@ export function Dashboard() {
 
   const arsAccounts = accounts.filter(a => a.currency === 'ARS')
   const arsCards    = cards.filter(c => c.currency === 'ARS')
-  const arsBankTotal = arsAccounts.reduce((s, a) => s + a.balance, 0)
-  const arsCardDebt  = arsCards.reduce((s, c) => s + c.current_debt + c.statement_debt, 0)
+  const arsBankTotal = arsAccounts.reduce((s, a) => s + (a.balance ?? 0), 0)
+  const arsCardDebt  = arsCards.reduce((s, c) => s + (c.current_debt ?? 0) + (c.statement_debt ?? 0), 0)
   const arsReal      = arsBankTotal - arsCardDebt
 
   const usdAccounts  = accounts.filter(a => a.currency === 'USD')
   const usdCards     = cards.filter(c => c.currency === 'USD')
-  const usdBankTotal = usdAccounts.reduce((s, a) => s + a.balance, 0)
-  const usdCardDebt  = usdCards.reduce((s, c) => s + c.current_debt + c.statement_debt, 0)
+  const usdBankTotal = usdAccounts.reduce((s, a) => s + (a.balance ?? 0), 0)
+  const usdCardDebt  = usdCards.reduce((s, c) => s + (c.current_debt ?? 0) + (c.statement_debt ?? 0), 0)
   const usdReal      = usdBankTotal - usdCardDebt
 
   const bankTotal = currencyMode === 'USD' ? usdBankTotal : arsBankTotal
