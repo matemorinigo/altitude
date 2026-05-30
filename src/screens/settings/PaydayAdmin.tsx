@@ -30,7 +30,7 @@ export function PaydayAdmin({ onBack }: Props) {
 
   useEffect(() => {
     if (!profile) return
-    setKind(profile.payday_kind)
+    setKind(profile.payday_kind as PaydayKind)
     setNth(String(profile.payday_nth_business_day ?? 1))
     setDom(String(profile.payday_day_of_month ?? 1))
     setExpected(profile.payday_expected_amount ? String(profile.payday_expected_amount) : '')

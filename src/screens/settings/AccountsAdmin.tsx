@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { SectionLabel } from '../../components/shell/SectionLabel'
-import { useAccounts, useAddAccount, useArchiveAccount } from '../../hooks/useAccounts'
+import { useAccounts, useAddAccount, useArchiveAccount, useUpdateAccountAlias } from '../../hooks/useAccounts'
 import type { AccountType } from '../../types/db'
 
 interface Props {
@@ -18,13 +18,16 @@ export function AccountsAdmin({ onBack }: Props) {
   const { data: accounts = [], isLoading } = useAccounts()
   const addAccount    = useAddAccount()
   const archiveAccount = useArchiveAccount()
+  const updateAlias   = useUpdateAccountAlias()
 
-  const [showForm, setShowForm] = useState(false)
-  const [code, setCode]         = useState('')
-  const [name, setName]         = useState('')
-  const [type, setType]         = useState<AccountType>('BANK')
-  const [currency, setCurrency] = useState('ARS')
-  const [err, setErr]           = useState('')
+  const [showForm, setShowForm]       = useState(false)
+  const [code, setCode]               = useState('')
+  const [name, setName]               = useState('')
+  const [type, setType]               = useState<AccountType>('BANK')
+  const [currency, setCurrency]       = useState('ARS')
+  const [err, setErr]                 = useState('')
+  const [editingAlias, setEditingAlias] = useState<string | null>(null)
+  const [aliasInput, setAliasInput]   = useState('')
 
   const handleAdd = async () => {
     if (!code.trim() || !name.trim()) { setErr('CODE AND NAME REQUIRED'); return }
@@ -35,6 +38,16 @@ export function AccountsAdmin({ onBack }: Props) {
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : 'ERROR')
     }
+  }
+
+  const startEditAlias = (id: string, current: string) => {
+    setEditingAlias(id)
+    setAliasInput(current)
+  }
+
+  const commitAlias = async (id: string) => {
+    await updateAlias.mutateAsync({ id, alias: aliasInput.trim() })
+    setEditingAlias(null)
   }
 
   return (
@@ -49,7 +62,6 @@ export function AccountsAdmin({ onBack }: Props) {
         <span style={{ color: 'var(--ink-3)' }}>ACCOUNTS · ADMIN</span>
       </div>
 
-      {/* Account list */}
       <SectionLabel right={`${accounts.length} OBJ`}>CUENTAS</SectionLabel>
 
       {isLoading && (
@@ -59,22 +71,70 @@ export function AccountsAdmin({ onBack }: Props) {
       )}
 
       {accounts.map(a => (
-        <div key={a.id} className="row" style={{ gridTemplateColumns: 'auto 1fr auto' }}>
-          <div style={{
-            width: 36, height: 36, border: '1px solid var(--line-2)', background: '#080808',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-2)',
-          }}>{a.code}</div>
-          <div>
-            <div className="name">{a.name}</div>
-            <div className="sub">{a.type} · {a.currency}</div>
+        <div key={a.id} style={{ borderBottom: '1px solid var(--line)', paddingBottom: 10, marginBottom: 10 }}>
+          <div className="row" style={{ gridTemplateColumns: 'auto 1fr auto', borderBottom: 0, paddingBottom: 0 }}>
+            <div style={{
+              width: 36, height: 36, border: '1px solid var(--line-2)', background: '#080808',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-2)',
+            }}>{a.code}</div>
+            <div>
+              <div className="name">{a.name}</div>
+              <div className="sub">{a.type} · {a.currency}</div>
+            </div>
+            <div
+              style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--red)', cursor: 'pointer', letterSpacing: '0.1em' }}
+              onClick={() => archiveAccount.mutate(a.id)}
+            >
+              ARCH
+            </div>
           </div>
-          <div
-            style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--red)', cursor: 'pointer', letterSpacing: '0.1em' }}
-            onClick={() => archiveAccount.mutate(a.id)}
-          >
-            ARCH
-          </div>
+          {/* Alias inline editor */}
+          {editingAlias === a.id ? (
+            <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+              <input
+                value={aliasInput}
+                onChange={e => setAliasInput(e.target.value)}
+                placeholder="alias (ej: altitude.galicia.ars)"
+                autoFocus
+                style={{ ...inputStyle, flex: 1, fontSize: 11, padding: '6px 10px' }}
+                onKeyDown={e => { if (e.key === 'Enter') commitAlias(a.id); if (e.key === 'Escape') setEditingAlias(null) }}
+              />
+              <button
+                onClick={() => commitAlias(a.id)}
+                disabled={updateAlias.isPending}
+                style={{
+                  background: 'transparent', border: '1px solid var(--grn)', color: 'var(--grn)',
+                  fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em',
+                  padding: '6px 12px', cursor: 'pointer',
+                }}
+              >
+                OK
+              </button>
+              <button
+                onClick={() => setEditingAlias(null)}
+                style={{
+                  background: 'transparent', border: '1px solid var(--line-2)', color: 'var(--ink-3)',
+                  fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em',
+                  padding: '6px 10px', cursor: 'pointer',
+                }}
+              >
+                ESC
+              </button>
+            </div>
+          ) : (
+            <div
+              onClick={() => startEditAlias(a.id, a.alias ?? '')}
+              style={{
+                marginTop: 4, fontFamily: 'var(--mono)', fontSize: 9.5, letterSpacing: '0.14em',
+                color: a.alias ? 'var(--ink-3)' : 'var(--ink-4)', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 8,
+              }}
+            >
+              <span style={{ color: 'var(--ink-4)' }}>ALIAS ›</span>
+              <span>{a.alias || '—  tap to set'}</span>
+            </div>
+          )}
         </div>
       ))}
 
@@ -84,7 +144,6 @@ export function AccountsAdmin({ onBack }: Props) {
         </div>
       )}
 
-      {/* Add form */}
       <SectionLabel right="NEW">AGREGAR CUENTA</SectionLabel>
 
       {!showForm ? (

@@ -36,6 +36,7 @@ export type Database = {
     Tables: {
       accounts: {
         Row: {
+          alias: string
           balance: number
           code: string
           created_at: string
@@ -48,6 +49,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          alias?: string
           balance?: number
           code: string
           created_at?: string
@@ -60,6 +62,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          alias?: string
           balance?: number
           code?: string
           created_at?: string
@@ -544,117 +547,19 @@ export const Constants = {
   },
 } as const
 
+// Convenience row-level aliases
+export type Account          = Database['public']['Tables']['accounts']['Row']
+export type Transaction      = Database['public']['Tables']['transactions']['Row']
+export type CreditCard       = Database['public']['Tables']['credit_cards']['Row']
+export type Profile          = Database['public']['Tables']['profiles']['Row']
+export type Ticker           = Database['public']['Tables']['tickers']['Row']
+export type RecurringTemplate = Database['public']['Tables']['recurring_templates']['Row']
+export type ScheduledEvent   = Database['public']['Tables']['scheduled_events']['Row']
 
-// -- App domain types --
+// Application-level string literal types (values used in code)
+export type AccountType      = 'BANK' | 'WALLET'
+export type TransactionKind  = 'EXPENSE' | 'INCOME' | 'TRANSFER' | 'CARD_PAYMENT'
+export type InstrumentKind   = 'CEDEAR' | 'STOCK_AR' | 'BOND_AR' | 'NOTE_AR' | 'CORP_AR' | 'STOCK_USA' | 'ADR_USA'
+export type PaydayKind       = 'DAY_OF_MONTH' | 'NTH_BUSINESS_DAY'
+export type ScheduleKind     = 'DAY_OF_MONTH' | 'NTH_BUSINESS_DAY'
 
-export type AccountType          = 'BANK' | 'WALLET'
-export type TransactionKind      = 'EXPENSE' | 'INCOME' | 'TRANSFER' | 'CARD_PAYMENT'
-export type PaydayKind           = 'NTH_BUSINESS_DAY' | 'DAY_OF_MONTH'
-export type ScheduleKind         = 'DAY_OF_MONTH' | 'NTH_BUSINESS_DAY'
-export type ScheduledEventStatus = 'PENDING' | 'CONFIRMED' | 'SKIPPED'
-
-export interface Profile {
-  id: string
-  display_name: string | null
-  base_currency: string
-  payday_kind: PaydayKind
-  payday_nth_business_day: number | null
-  payday_day_of_month: number | null
-  payday_expected_amount: number | null
-  created_at: string
-}
-
-export interface RecurringTemplate {
-  id: string
-  user_id: string
-  kind: 'EXPENSE' | 'INCOME'
-  name: string
-  amount: number | null
-  prompt_for_amount: boolean
-  account_id: string | null
-  credit_card_id: string | null
-  category: string
-  description: string | null
-  schedule_kind: ScheduleKind
-  day_of_month: number | null
-  nth_business_day: number | null
-  is_active: boolean
-  is_payday: boolean
-  last_generated_for: string | null
-  created_at: string
-}
-
-export interface ScheduledEvent {
-  id: string
-  user_id: string
-  template_id: string
-  due_date: string
-  status: ScheduledEventStatus
-  confirmed_transaction_id: string | null
-  created_at: string
-  recurring_templates?: RecurringTemplate
-}
-
-export interface Account {
-  id: string
-  user_id: string
-  code: string
-  name: string
-  type: AccountType
-  currency: string
-  balance: number
-  sort_order: number
-  is_archived: boolean
-  created_at: string
-}
-
-export interface CreditCard {
-  id: string
-  user_id: string
-  code: string
-  name: string
-  close_day: number
-  due_day: number
-  currency: string
-  current_debt: number
-  statement_debt: number
-  last_closed_at: string | null
-  sort_order: number
-  is_archived: boolean
-  created_at: string
-}
-
-export type InstrumentKind = 'CEDEAR' | 'STOCK_AR' | 'BOND_AR' | 'NOTE_AR' | 'CORP_AR' | 'STOCK_USA' | 'ADR_USA'
-
-export interface Ticker {
-  id: string
-  user_id: string
-  symbol: string
-  quantity: number
-  avg_cost: number | null
-  asset_class: string | null
-  instrument_kind: InstrumentKind
-  last_price: number | null
-  last_price_currency: string | null
-  last_price_at: string | null
-  notes: string | null
-  sort_order: number
-  is_archived: boolean
-  created_at: string
-}
-
-export interface Transaction {
-  id: string
-  user_id: string
-  account_id: string | null
-  credit_card_id: string | null
-  kind: TransactionKind
-  amount: number
-  currency: string
-  category: string
-  description: string | null
-  occurred_at: string
-  recurring_template_id: string | null
-  scheduled_event_id: string | null
-  created_at: string
-}

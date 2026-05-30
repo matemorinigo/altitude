@@ -35,7 +35,7 @@ export function RecurringPromptModal({ event, accounts, cards, onClose }: Props)
     setErr('')
     try {
       const tx = await addTx.mutateAsync({
-        kind:           t.kind,
+        kind:           t.kind as import('../../types/db').TransactionKind,
         amount:         num,
         category:       t.category,
         description:    t.description ?? t.name,

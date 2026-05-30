@@ -12,6 +12,8 @@ import { LogTransactionModal } from '../components/modals/LogTransactionModal'
 import { PaydayPromptModal } from '../components/modals/PaydayPromptModal'
 import { RecurringPromptModal } from '../components/modals/RecurringPromptModal'
 import { CardClosePromptModal } from '../components/modals/CardClosePromptModal'
+import { TransferModal } from '../components/modals/TransferModal'
+import { AccountDetail } from './AccountDetail'
 import { useAccounts } from '../hooks/useAccounts'
 import { useCreditCards } from '../hooks/useCreditCards'
 import { useRecentTransactions, useCycleTransactions } from '../hooks/useTransactions'
@@ -22,12 +24,14 @@ import { ensureScheduledEvents, nextPaydayDate, cycleProgress } from '../lib/pay
 import { needsStatementClose } from '../lib/cardCycle'
 import { getToday } from '../lib/time'
 import { fmt } from '../lib/format'
-import type { ScheduledEvent, RecurringTemplate, CreditCard } from '../types/db'
+import type { ScheduledEvent, RecurringTemplate, CreditCard, Account } from '../types/db'
 
 export function Dashboard() {
-  const [showLog, setShowLog]           = useState(false)
-  const [cardToClose, setCardToClose]   = useState<CreditCard | null>(null)
-  const [currencyMode, setCurrencyMode] = useState<'ARS' | 'USD'>('ARS')
+  const [showLog, setShowLog]               = useState(false)
+  const [cardToClose, setCardToClose]       = useState<CreditCard | null>(null)
+  const [currencyMode, setCurrencyMode]     = useState<'ARS' | 'USD'>('ARS')
+  const [selectedAccount, setSelectedAccount] = useState<Account | null>(null)
+  const [transferFrom, setTransferFrom]     = useState<Account | null>(null)
   const isDesktop                       = useIsDesktop()
   const qc                              = useQueryClient()
 
@@ -118,6 +122,13 @@ export function Dashboard() {
           onClose={() => setCardToClose(null)}
         />
       )}
+      {transferFrom && (
+        <TransferModal
+          fromAccount={transferFrom}
+          accounts={accounts}
+          onClose={() => setTransferFrom(null)}
+        />
+      )}
     </>
   )
 
@@ -129,7 +140,7 @@ export function Dashboard() {
       breakdown={[
         { label: 'BANCOS',  value: `${bankI}.${bankC}`,        color: 'var(--ink)' },
         { label: 'TARJETA', value: `${cardI}.${cardC}`, op: '−', color: 'var(--amb)' },
-        { label: 'REAL',    value: `${realI}.${realC}`, op: '=', color: 'var(--grn)' },
+        { label: 'REAL',    value: `${realI}.${realC}`, op: '=', color: real >= 0 ? 'var(--grn)' : 'var(--red)' },
       ]}
     />
   )
@@ -175,7 +186,13 @@ export function Dashboard() {
     <>
       {accounts.length === 0
         ? <EmptyHint>NO ACCOUNTS · ADD IN SYS</EmptyHint>
-        : accounts.map(a => <AccountRow key={a.id} {...a} />)
+        : accounts.map(a => (
+          <AccountRow
+            key={a.id}
+            {...a}
+            onClick={() => setSelectedAccount(a)}
+          />
+        ))
       }
     </>
   )
@@ -205,6 +222,28 @@ export function Dashboard() {
         ))}
       </div>
     )
+
+  // Account detail sub-screen — replaces dashboard when active
+  if (selectedAccount) {
+    return (
+      <>
+        {transferFrom && (
+          <TransferModal
+            fromAccount={transferFrom}
+            accounts={accounts}
+            onClose={() => setTransferFrom(null)}
+          />
+        )}
+        <AccountDetail
+          account={selectedAccount}
+          cycleFrom={cycleFrom}
+          accounts={accounts}
+          onBack={() => setSelectedAccount(null)}
+          onTransfer={(acct) => setTransferFrom(acct)}
+        />
+      </>
+    )
+  }
 
   if (isDesktop) {
     return (

@@ -34,6 +34,20 @@ export function useAddAccount() {
   })
 }
 
+export function useUpdateAccountAlias() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, alias }: { id: string; alias: string }) => {
+      const { error } = await supabase
+        .from('accounts')
+        .update({ alias })
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: QK }),
+  })
+}
+
 export function useArchiveAccount() {
   const qc = useQueryClient()
   return useMutation({

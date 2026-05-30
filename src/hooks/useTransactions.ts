@@ -12,6 +12,7 @@ export interface TransactionWithRefs extends Transaction {
 export interface LedgerFilters {
   kind?:     TransactionKind | 'ALL'
   category?: string
+  currency?: 'ARS' | 'USD'
 }
 
 export function useAllTransactions(filters: LedgerFilters = {}) {
@@ -30,8 +31,28 @@ export function useAllTransactions(filters: LedgerFilters = {}) {
       if (filters.category && filters.category !== 'ALL') {
         q = q.eq('category', filters.category)
       }
+      if (filters.currency) {
+        q = q.eq('currency', filters.currency)
+      }
 
       const { data, error } = await q
+      if (error) throw error
+      return data as TransactionWithRefs[]
+    },
+  })
+}
+
+export function useAccountTransactions(accountId: string | null) {
+  return useQuery({
+    queryKey: [...QK, 'account', accountId],
+    enabled: !!accountId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*, accounts(code), credit_cards(code)')
+        .eq('account_id', accountId!)
+        .order('occurred_at', { ascending: false })
+        .limit(300)
       if (error) throw error
       return data as TransactionWithRefs[]
     },

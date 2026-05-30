@@ -102,7 +102,7 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Pro
     return 'ARS'
   })()
 
-  const modeOptions: Array<{ id: Direction; label: string; col: string; border?: string }> = [
+  const modeOptions: Array<{ id: Direction; label: string; col: string }> = [
     { id: 'OUT', label: 'DEBIT · GASTO',    col: 'var(--amb)' },
     { id: 'IN',  label: 'CREDIT · INGRESO', col: 'var(--grn)' },
     ...(cards.length > 0 ? [{ id: 'PAY' as Direction, label: 'PAGO · TARJETA', col: 'var(--amb)' }] : []),
@@ -115,7 +115,7 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Pro
       background: 'rgba(0,0,0,0.92)',
       backdropFilter: 'blur(4px)',
     }}>
-      {/* HUD header */}
+      {/* HUD header — fijo */}
       <div style={{
         padding: '8px 14px',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -129,7 +129,8 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Pro
         <span onClick={onClose} style={{ cursor: 'pointer', color: 'var(--amb)' }}>ESC ✕</span>
       </div>
 
-      <div className="scroll" style={{ padding: '0 14px 14px' }}>
+      {/* Zona scrollable: dirección / categoría / cuenta / tarjeta / desc */}
+      <div className="scroll" style={{ padding: '0 14px', flex: 1 }}>
         {/* Direction toggle */}
         <div style={{ display: 'flex', gap: 0, marginTop: 14, border: '1px solid var(--line-2)' }}>
           {modeOptions.map((o, i) => (
@@ -146,27 +147,7 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Pro
           ))}
         </div>
 
-        {/* Amount display */}
-        <div style={{
-          marginTop: 14, padding: '18px 16px', border: '1px solid var(--line-2)',
-          background: '#050505', position: 'relative',
-        }}>
-          <span className="brackets"><i /></span>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.18em', color: 'var(--ink-3)', marginBottom: 8 }}>
-            AMOUNT · {activeCurrency}
-          </div>
-          <div style={{
-            fontFamily: 'var(--mono)', fontSize: 48, letterSpacing: '-0.03em',
-            color, fontVariantNumeric: 'tabular-nums',
-            display: 'flex', alignItems: 'baseline', gap: 6,
-          }}>
-            <span style={{ color: 'var(--ink-4)', fontSize: 26 }}>{amtPrefix}$</span>
-            <span>{amount}</span>
-            <span className="blink" style={{ color, fontSize: 36 }}>▮</span>
-          </div>
-        </div>
-
-        {/* Category chips (not shown for PAY) */}
+        {/* Category chips */}
         {direction !== 'PAY' && (
           <>
             <SectionLabel right="CAT">CATEGORÍA</SectionLabel>
@@ -192,7 +173,7 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Pro
           ))}
         </div>
 
-        {/* Card selector (for expenses or PAY) */}
+        {/* Card selector */}
         {(direction === 'OUT' || direction === 'PAY') && cards.length > 0 && (
           <>
             <SectionLabel right="CARD">{direction === 'PAY' ? 'TARJETA A PAGAR' : 'TARJETA'}</SectionLabel>
@@ -229,9 +210,40 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Pro
             outline: 'none',
           }}
         />
+        <div style={{ height: 14 }} />
+      </div>
+
+      {/* Zona fija: amount display + keypad + commit */}
+      <div style={{ flexShrink: 0, borderTop: '1px solid var(--line-2)' }}>
+        {/* Amount display */}
+        <div style={{
+          padding: '12px 14px 10px', background: '#050505', position: 'relative',
+          borderBottom: '1px solid var(--line)',
+        }}>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.18em', color: 'var(--ink-3)', marginBottom: 6 }}>
+            AMOUNT · {activeCurrency}
+          </div>
+          <div style={{
+            fontFamily: 'var(--mono)', fontSize: 40, letterSpacing: '-0.03em',
+            color, fontVariantNumeric: 'tabular-nums',
+            display: 'flex', alignItems: 'baseline', gap: 6,
+          }}>
+            <span style={{ color: 'var(--ink-4)', fontSize: 22 }}>{amtPrefix}$</span>
+            <span>{amount}</span>
+            <span className="blink" style={{ color, fontSize: 30 }}>▮</span>
+          </div>
+          {err && (
+            <div style={{
+              marginTop: 6, padding: '6px 10px',
+              border: '1px solid var(--red)', color: 'var(--red)',
+              fontFamily: 'var(--mono)', fontSize: 9.5, letterSpacing: '0.14em',
+            }}>
+              ✕ {err}
+            </div>
+          )}
+        </div>
 
         {/* Keypad */}
-        <SectionLabel right="INPUT">TECLADO</SectionLabel>
         <div className="keypad">
           {['1','2','3','4','5','6','7','8','9','.','0','DEL'].map(k => (
             <div key={k} className={`key ${k === 'DEL' ? 'act' : ''}`} onClick={() => tap(k)}>
@@ -240,31 +252,21 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Pro
           ))}
         </div>
 
-        {err && (
-          <div style={{
-            marginTop: 10, padding: '8px 12px',
-            border: '1px solid var(--red)', color: 'var(--red)',
-            fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em',
-          }}>
-            ✕ {err}
-          </div>
-        )}
-
         {/* Commit */}
-        <div style={{ marginTop: 14 }}>
+        <div style={{ padding: '10px 14px 10px' }}>
           <button
             className="btn-trigger"
             onClick={handleCommit}
             disabled={addTx.isPending}
-            style={{ padding: '20px 18px', opacity: addTx.isPending ? 0.6 : 1 }}
+            style={{ padding: '16px 18px', opacity: addTx.isPending ? 0.6 : 1 }}
           >
             <span style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
               <span style={{
-                width: 26, height: 26, border: '1px solid var(--grn)',
+                width: 24, height: 24, border: '1px solid var(--grn)',
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                fontFamily: 'var(--mono)', fontSize: 14,
+                fontFamily: 'var(--mono)', fontSize: 12,
               }}>▶</span>
-              <span style={{ fontSize: 14, letterSpacing: '0.24em' }}>
+              <span style={{ fontSize: 13, letterSpacing: '0.24em' }}>
                 {addTx.isPending ? 'SAVING...' : 'COMMIT · ENTER'}
               </span>
             </span>
@@ -273,8 +275,6 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Pro
             </span>
           </button>
         </div>
-
-        <div style={{ height: 12 }} />
       </div>
     </div>
   )
