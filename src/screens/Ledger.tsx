@@ -7,14 +7,15 @@ import { useIsDesktop } from '../hooks/useIsDesktop'
 import { CATEGORIES } from '../lib/categories'
 import { fmt } from '../lib/format'
 
-type KindFilter = 'ALL' | 'EXPENSE' | 'INCOME' | 'CARD_PAYMENT'
+type KindFilter = 'ALL' | 'EXPENSE' | 'INCOME' | 'CARD_PAYMENT' | 'RECTIFICATION'
 type CurrencyFilter = 'ARS' | 'USD'
 
 const KIND_LABELS: Record<KindFilter, string> = {
-  ALL:          'ALL',
-  EXPENSE:      'EXPENSE',
-  INCOME:       'INCOME',
-  CARD_PAYMENT: 'CARD PMT',
+  ALL:            'ALL',
+  EXPENSE:        'EXPENSE',
+  INCOME:         'INCOME',
+  CARD_PAYMENT:   'CARD PMT',
+  RECTIFICATION:  'RECTIF',
 }
 
 export function Ledger() {
@@ -24,9 +25,10 @@ export function Ledger() {
   const isDesktop                           = useIsDesktop()
 
   const filters: LedgerFilters = {
-    kind:     kindFilter === 'ALL' ? 'ALL' : kindFilter,
-    category: catFilter,
-    currency: currencyFilter,
+    kind:                  kindFilter === 'ALL' ? 'ALL' : kindFilter,
+    category:              catFilter,
+    currency:              currencyFilter,
+    includeRectifications: kindFilter === 'RECTIFICATION',
   }
 
   const { data: txs = [], isLoading, isError, refetch } = useAllTransactions(filters)

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { TxRow } from '../components/rows/TxRow'
 import { TelemetryBar } from '../components/primitives/TelemetryBar'
+import { RectifyModal } from '../components/modals/RectifyModal'
 import { useAccountTransactions } from '../hooks/useTransactions'
 import { fmt } from '../lib/format'
 import type { Account } from '../types/db'
@@ -55,7 +56,8 @@ function Sparkline({ values, color = 'var(--grn)', dimColor = 'var(--grn-dim)' }
 }
 
 export function AccountDetail({ account, cycleFrom, accounts, onBack, onTransfer }: Props) {
-  const [filter, setFilter] = useState<TxFilter>('ALL')
+  const [filter, setFilter]       = useState<TxFilter>('ALL')
+  const [showRectify, setShowRectify] = useState(false)
   const { data: txs = [], isLoading } = useAccountTransactions(account.id)
 
   const isPositive = account.currency === 'ARS'
@@ -63,10 +65,14 @@ export function AccountDetail({ account, cycleFrom, accounts, onBack, onTransfer
     : true // USD is always positive color-wise for balance
   const balColor = (account.balance ?? 0) >= 0 ? 'var(--grn)' : 'var(--red)'
 
-  // Cycle stats (from cycleFrom)
+  // Separate regular txs from rectifications
+  const regularTxs = useMemo(() => txs.filter(t => t.kind !== 'RECTIFICATION'), [txs])
+  const rectTxs    = useMemo(() => txs.filter(t => t.kind === 'RECTIFICATION'), [txs])
+
+  // Cycle stats (from cycleFrom) — exclude rectifications
   const cycleTxs = useMemo(() =>
-    txs.filter(t => new Date(t.occurred_at) >= cycleFrom),
-    [txs, cycleFrom]
+    regularTxs.filter(t => new Date(t.occurred_at) >= cycleFrom),
+    [regularTxs, cycleFrom]
   )
   const cycleIn  = cycleTxs.filter(t => t.kind === 'INCOME').reduce((s, t) => s + t.amount, 0)
   const cycleOut = cycleTxs.filter(t => t.kind === 'EXPENSE' || t.kind === 'CARD_PAYMENT').reduce((s, t) => s + t.amount, 0)
@@ -76,7 +82,6 @@ export function AccountDetail({ account, cycleFrom, accounts, onBack, onTransfer
   const sparkValues = useMemo(() => {
     const now = new Date()
     const days: number[] = []
-    // Walk back 30 days: start from current balance and subtract/add txs
     let runningBalance = account.balance ?? 0
     const txsSorted = [...txs].sort((a, b) =>
       new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime()
@@ -86,15 +91,12 @@ export function AccountDetail({ account, cycleFrom, accounts, onBack, onTransfer
       const dayEnd = new Date(now)
       dayEnd.setDate(dayEnd.getDate() - d)
       dayEnd.setHours(23, 59, 59, 999)
-      const dayStart = new Date(dayEnd)
-      dayStart.setHours(0, 0, 0, 0)
 
-      // Push transactions that happened after this day's end (they haven't "happened" yet going backwards)
       while (txIdx < txsSorted.length && new Date(txsSorted[txIdx].occurred_at) > dayEnd) {
         const t = txsSorted[txIdx]
-        // Reverse the effect: if it was income, subtract it; if expense, add it back
         if (t.kind === 'INCOME') runningBalance -= t.amount
         else if (t.kind === 'EXPENSE' || t.kind === 'CARD_PAYMENT') runningBalance += t.amount
+        else if (t.kind === 'RECTIFICATION') runningBalance -= t.amount
         txIdx++
       }
 
@@ -103,10 +105,10 @@ export function AccountDetail({ account, cycleFrom, accounts, onBack, onTransfer
     return days
   }, [txs, account.balance])
 
-  // Category breakdown (expenses only)
+  // Category breakdown (expenses only, no rectifications)
   const catBreakdown = useMemo(() => {
     const map: Record<string, number> = {}
-    txs.filter(t => t.kind === 'EXPENSE' || t.kind === 'CARD_PAYMENT').forEach(t => {
+    regularTxs.filter(t => t.kind === 'EXPENSE' || t.kind === 'CARD_PAYMENT').forEach(t => {
       map[t.category] = (map[t.category] ?? 0) + t.amount
     })
     const total = Object.values(map).reduce((s, v) => s + v, 0) || 1
@@ -116,12 +118,12 @@ export function AccountDetail({ account, cycleFrom, accounts, onBack, onTransfer
       .map(([cat, val]) => ({ cat, val, pct: Math.round((val / total) * 100) }))
   }, [txs])
 
-  // Filtered tx list
+  // Filtered tx list (never includes rectifications — shown separately)
   const filteredTxs = useMemo(() => {
-    if (filter === 'IN')  return txs.filter(t => t.kind === 'INCOME')
-    if (filter === 'OUT') return txs.filter(t => t.kind === 'EXPENSE' || t.kind === 'CARD_PAYMENT')
-    return txs
-  }, [txs, filter])
+    if (filter === 'IN')  return regularTxs.filter(t => t.kind === 'INCOME')
+    if (filter === 'OUT') return regularTxs.filter(t => t.kind === 'EXPENSE' || t.kind === 'CARD_PAYMENT')
+    return regularTxs
+  }, [regularTxs, filter])
 
   const { intStr, centStr } = fmt(account.balance ?? 0)
   const now = new Date()
@@ -380,6 +382,68 @@ export function AccountDetail({ account, cycleFrom, accounts, onBack, onTransfer
             <span className="num" style={{ fontSize: 9, color: 'var(--ink-3)' }}>F1</span>
           </button>
         </div>
+      )}
+
+      {/* Rectify CTA */}
+      <div style={{ padding: accounts.filter(a => a.id !== account.id).length > 0 ? '4px 14px 4px' : '14px 14px 4px' }}>
+        <button
+          className="btn-trigger"
+          onClick={() => setShowRectify(true)}
+          style={{ padding: '18px', borderColor: 'var(--amb)', opacity: 0.85 }}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <span style={{
+              width: 26, height: 26, border: '1px solid var(--amb)',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              fontFamily: 'var(--mono)', fontSize: 14, color: 'var(--amb)',
+            }}>◆</span>
+            <span style={{ fontSize: 13, letterSpacing: '0.22em', color: 'var(--amb)' }}>RECTIFICAR ›</span>
+          </span>
+          <span className="num" style={{ fontSize: 9, color: 'var(--ink-3)' }}>F2</span>
+        </button>
+      </div>
+
+      {/* Rectifications history */}
+      {rectTxs.length > 0 && (
+        <div style={{ padding: '12px 14px 20px' }}>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.18em', color: 'var(--ink-4)', marginBottom: 8 }}>
+            ◆ RECTIFICACIONES · {rectTxs.length}
+          </div>
+          <div className="panel tight">
+            <span className="brackets"><i /></span>
+            {rectTxs.map((t, i) => {
+              const d    = new Date(t.occurred_at)
+              const date = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`
+              const isPos = t.amount >= 0
+              const abs   = Math.abs(t.amount)
+              return (
+                <div key={t.id} style={{
+                  display: 'grid', gridTemplateColumns: '44px 1fr 90px',
+                  alignItems: 'center', padding: '8px 0',
+                  borderBottom: i < rectTxs.length - 1 ? '1px solid var(--line)' : 0,
+                  fontFamily: 'var(--mono)',
+                }}>
+                  <span style={{ fontSize: 10, color: 'var(--ink-4)', letterSpacing: '0.04em' }}>{date}</span>
+                  <span style={{ fontSize: 11, color: 'var(--ink-3)', letterSpacing: '0.08em' }}>
+                    {t.description || 'RECTIF'}
+                  </span>
+                  <span style={{
+                    textAlign: 'right', fontSize: 12,
+                    color: isPos ? 'var(--grn)' : 'var(--red)',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}>
+                    {isPos ? '+' : '−'}{fmt(abs).intStr}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Rectify modal */}
+      {showRectify && (
+        <RectifyModal account={account} onClose={() => setShowRectify(false)} />
       )}
     </div>
   )

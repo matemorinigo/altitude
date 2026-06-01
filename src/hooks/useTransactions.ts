@@ -13,6 +13,7 @@ export interface LedgerFilters {
   kind?:     TransactionKind | 'ALL'
   category?: string
   currency?: 'ARS' | 'USD'
+  includeRectifications?: boolean
 }
 
 export function useAllTransactions(filters: LedgerFilters = {}) {
@@ -27,6 +28,8 @@ export function useAllTransactions(filters: LedgerFilters = {}) {
 
       if (filters.kind && filters.kind !== 'ALL') {
         q = q.eq('kind', filters.kind)
+      } else if (!filters.includeRectifications) {
+        q = q.neq('kind', 'RECTIFICATION')
       }
       if (filters.category && filters.category !== 'ALL') {
         q = q.eq('category', filters.category)
@@ -98,6 +101,40 @@ export interface AddTransactionPayload {
   account_id?: string | null
   credit_card_id?: string | null
   currency?: string
+}
+
+export interface RectifyPayload {
+  account_id?: string | null
+  credit_card_id?: string | null
+  amount: number           // signed delta: real − system
+  currency: string
+  description?: string
+}
+
+export function useRectifyAccount() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (payload: RectifyPayload): Promise<{ id: string }> => {
+      const { data: { user } } = await supabase.auth.getUser()
+      const { data, error } = await supabase.from('transactions').insert({
+        user_id:        user!.id,
+        kind:           'RECTIFICATION',
+        amount:         payload.amount,
+        category:       'RECTIFICATION',
+        description:    payload.description ?? null,
+        account_id:     payload.account_id ?? null,
+        credit_card_id: payload.credit_card_id ?? null,
+        currency:       payload.currency,
+      }).select('id').single()
+      if (error) throw error
+      return data as { id: string }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK })
+      qc.invalidateQueries({ queryKey: ['accounts'] })
+      qc.invalidateQueries({ queryKey: ['credit_cards'] })
+    },
+  })
 }
 
 export function useAddTransaction() {

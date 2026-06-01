@@ -10,7 +10,9 @@ interface TxRowProps {
 
 export function TxRow({ tx, acctCode, isCard, last }: TxRowProps) {
   const isIncome = tx.kind === 'INCOME'
-  const { intStr } = fmt(tx.amount)
+  const isRect   = tx.kind === 'RECTIFICATION'
+  const signedAmt = isRect ? tx.amount : Math.abs(tx.amount)
+  const { intStr } = fmt(Math.abs(signedAmt))
   const d = new Date(tx.occurred_at)
   const date = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`
   const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
@@ -49,10 +51,15 @@ export function TxRow({ tx, acctCode, isCard, last }: TxRowProps) {
       </span>
       <span style={{
         textAlign: 'right', fontSize: 12,
-        color: isIncome ? 'var(--grn)' : 'var(--ink)',
+        color: isRect
+          ? (signedAmt >= 0 ? 'var(--grn)' : 'var(--red)')
+          : isIncome ? 'var(--grn)' : 'var(--ink)',
         fontVariantNumeric: 'tabular-nums',
       }}>
-        {isIncome ? '+' : '−'}{intStr}
+        {isRect
+          ? (signedAmt >= 0 ? '+' : '−')
+          : isIncome ? '+' : '−'
+        }{intStr}
       </span>
     </div>
   )

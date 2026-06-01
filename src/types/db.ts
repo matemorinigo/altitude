@@ -548,18 +548,17 @@ export const Constants = {
 } as const
 
 // Convenience row-level aliases
-export type Account          = Database['public']['Tables']['accounts']['Row']
-export type Transaction      = Database['public']['Tables']['transactions']['Row']
-export type CreditCard       = Database['public']['Tables']['credit_cards']['Row']
-export type Profile          = Database['public']['Tables']['profiles']['Row']
-export type Ticker           = Database['public']['Tables']['tickers']['Row']
+export type Account           = Database['public']['Tables']['accounts']['Row']
+export type Transaction       = Database['public']['Tables']['transactions']['Row']
+export type CreditCard        = Database['public']['Tables']['credit_cards']['Row']
+export type Profile           = Database['public']['Tables']['profiles']['Row']
+export type Ticker            = Database['public']['Tables']['tickers']['Row']
 export type RecurringTemplate = Database['public']['Tables']['recurring_templates']['Row']
-export type ScheduledEvent   = Database['public']['Tables']['scheduled_events']['Row']
+export type ScheduledEvent    = Database['public']['Tables']['scheduled_events']['Row']
 
 // Application-level string literal types (values used in code)
 export type AccountType      = 'BANK' | 'WALLET'
-export type TransactionKind  = 'EXPENSE' | 'INCOME' | 'TRANSFER' | 'CARD_PAYMENT'
+export type TransactionKind  = 'EXPENSE' | 'INCOME' | 'TRANSFER' | 'CARD_PAYMENT' | 'RECTIFICATION'
 export type InstrumentKind   = 'CEDEAR' | 'STOCK_AR' | 'BOND_AR' | 'NOTE_AR' | 'CORP_AR' | 'STOCK_USA' | 'ADR_USA'
 export type PaydayKind       = 'DAY_OF_MONTH' | 'NTH_BUSINESS_DAY'
 export type ScheduleKind     = 'DAY_OF_MONTH' | 'NTH_BUSINESS_DAY'
-
