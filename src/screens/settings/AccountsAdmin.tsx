@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { SectionLabel } from '../../components/shell/SectionLabel'
-import { useAccounts, useAddAccount, useArchiveAccount, useUpdateAccountAlias } from '../../hooks/useAccounts'
+import { useAccounts, useAddAccount, useArchiveAccount, useUpdateAccountAlias, useToggleAccountExclude } from '../../hooks/useAccounts'
 import type { AccountType } from '../../types/db'
 
 interface Props {
@@ -16,9 +16,10 @@ const inputStyle: React.CSSProperties = {
 
 export function AccountsAdmin({ onBack }: Props) {
   const { data: accounts = [], isLoading } = useAccounts()
-  const addAccount    = useAddAccount()
-  const archiveAccount = useArchiveAccount()
-  const updateAlias   = useUpdateAccountAlias()
+  const addAccount      = useAddAccount()
+  const archiveAccount  = useArchiveAccount()
+  const updateAlias     = useUpdateAccountAlias()
+  const toggleExclude   = useToggleAccountExclude()
 
   const [showForm, setShowForm]       = useState(false)
   const [code, setCode]               = useState('')
@@ -82,11 +83,22 @@ export function AccountsAdmin({ onBack }: Props) {
               <div className="name">{a.name}</div>
               <div className="sub">{a.type} · {a.currency}</div>
             </div>
-            <div
-              style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--red)', cursor: 'pointer', letterSpacing: '0.1em' }}
-              onClick={() => archiveAccount.mutate(a.id)}
-            >
-              ARCH
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+              <div
+                style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--red)', cursor: 'pointer', letterSpacing: '0.1em' }}
+                onClick={() => archiveAccount.mutate(a.id)}
+              >
+                ARCH
+              </div>
+              <div
+                style={{
+                  fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer',
+                  color: a.exclude_from_total ? 'var(--amb)' : 'var(--ink-3)',
+                }}
+                onClick={() => toggleExclude.mutate({ id: a.id, exclude: !a.exclude_from_total })}
+              >
+                {a.exclude_from_total ? 'EXCL ●' : 'EXCL ○'}
+              </div>
             </div>
           </div>
           {/* Alias inline editor */}

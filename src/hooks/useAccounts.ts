@@ -61,3 +61,17 @@ export function useArchiveAccount() {
     onSuccess: () => qc.invalidateQueries({ queryKey: QK }),
   })
 }
+
+export function useToggleAccountExclude() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, exclude }: { id: string; exclude: boolean }) => {
+      const { error } = await supabase
+        .from('accounts')
+        .update({ exclude_from_total: exclude })
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: QK }),
+  })
+}

@@ -41,6 +41,7 @@ export type Database = {
           code: string
           created_at: string
           currency: string
+          exclude_from_total: boolean
           id: string
           is_archived: boolean
           name: string
@@ -54,6 +55,7 @@ export type Database = {
           code: string
           created_at?: string
           currency?: string
+          exclude_from_total?: boolean
           id?: string
           is_archived?: boolean
           name: string
@@ -67,6 +69,7 @@ export type Database = {
           code?: string
           created_at?: string
           currency?: string
+          exclude_from_total?: boolean
           id?: string
           is_archived?: boolean
           name?: string
@@ -562,3 +565,4 @@ export type TransactionKind  = 'EXPENSE' | 'INCOME' | 'TRANSFER' | 'CARD_PAYMENT
 export type InstrumentKind   = 'CEDEAR' | 'STOCK_AR' | 'BOND_AR' | 'NOTE_AR' | 'CORP_AR' | 'STOCK_USA' | 'ADR_USA'
 export type PaydayKind       = 'DAY_OF_MONTH' | 'NTH_BUSINESS_DAY'
 export type ScheduleKind     = 'DAY_OF_MONTH' | 'NTH_BUSINESS_DAY'
+

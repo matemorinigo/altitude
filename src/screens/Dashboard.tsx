@@ -54,15 +54,15 @@ export function Dashboard() {
   const totalBurn  = cycleTxs.reduce((s, t) => s + t.amount, 0)
   const burnPerDay = cycle.daysIn > 0 ? totalBurn / cycle.daysIn : 0
 
-  const arsAccounts = accounts.filter(a => a.currency === 'ARS')
-  const arsCards    = cards.filter(c => c.currency === 'ARS')
-  const arsBankTotal = arsAccounts.reduce((s, a) => s + (a.balance ?? 0), 0)
+  const arsAccounts  = accounts.filter(a => a.currency === 'ARS')
+  const arsCards     = cards.filter(c => c.currency === 'ARS')
+  const arsBankTotal = arsAccounts.filter(a => !a.exclude_from_total).reduce((s, a) => s + (a.balance ?? 0), 0)
   const arsCardDebt  = arsCards.reduce((s, c) => s + (c.current_debt ?? 0) + (c.statement_debt ?? 0), 0)
   const arsReal      = arsBankTotal - arsCardDebt
 
   const usdAccounts  = accounts.filter(a => a.currency === 'USD')
   const usdCards     = cards.filter(c => c.currency === 'USD')
-  const usdBankTotal = usdAccounts.reduce((s, a) => s + (a.balance ?? 0), 0)
+  const usdBankTotal = usdAccounts.filter(a => !a.exclude_from_total).reduce((s, a) => s + (a.balance ?? 0), 0)
   const usdCardDebt  = usdCards.reduce((s, c) => s + (c.current_debt ?? 0) + (c.statement_debt ?? 0), 0)
   const usdReal      = usdBankTotal - usdCardDebt
 
