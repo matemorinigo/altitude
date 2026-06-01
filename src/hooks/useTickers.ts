@@ -67,7 +67,7 @@ export interface BuyTickerPayload {
   ticker: Ticker
   addQty: number
   pricePerUnit: number
-  accountId: string
+  accountId: string | null
 }
 
 export function useBuyTicker() {
@@ -77,16 +77,18 @@ export function useBuyTicker() {
       const { data: { user } } = await supabase.auth.getUser()
       const total = addQty * pricePerUnit
 
-      const { error: txErr } = await supabase.from('transactions').insert({
-        user_id:     user!.id,
-        kind:        'EXPENSE',
-        amount:      total,
-        category:    'INVEST',
-        description: `BUY ${ticker.symbol} × ${addQty}`,
-        account_id:  accountId,
-        currency:    ticker.last_price_currency ?? 'ARS',
-      })
-      if (txErr) throw txErr
+      if (accountId) {
+        const { error: txErr } = await supabase.from('transactions').insert({
+          user_id:     user!.id,
+          kind:        'EXPENSE',
+          amount:      total,
+          category:    'INVEST',
+          description: `BUY ${ticker.symbol} × ${addQty}`,
+          account_id:  accountId,
+          currency:    ticker.last_price_currency ?? 'ARS',
+        })
+        if (txErr) throw txErr
+      }
 
       const oldQty = ticker.quantity
       const oldAvg = ticker.avg_cost ?? 0

@@ -28,6 +28,7 @@ export function OperateTickerModal({ ticker, accounts, onClose }: Props) {
   const [buyPrice, setBuyPrice] = useState(
     ticker.last_price != null ? String(ticker.last_price) : ''
   )
+  const [doDebit,  setDoDebit]  = useState(true)
   const [buyAcct,  setBuyAcct]  = useState(accounts[0]?.id ?? '')
 
   // sell state
@@ -72,11 +73,11 @@ export function OperateTickerModal({ ticker, accounts, onClose }: Props) {
   const handleConfirm = async () => {
     setErr('')
     if (mode === 'BUY') {
-      if (addQty <= 0)       { setErr('CANTIDAD REQUERIDA'); return }
-      if (buyPriceNum <= 0)  { setErr('PRECIO REQUERIDO'); return }
-      if (!buyAcct)          { setErr('SELECCIONÁ UNA CUENTA'); return }
+      if (addQty <= 0)              { setErr('CANTIDAD REQUERIDA'); return }
+      if (buyPriceNum <= 0)         { setErr('PRECIO REQUERIDO'); return }
+      if (doDebit && !buyAcct)      { setErr('SELECCIONÁ UNA CUENTA'); return }
       try {
-        await buy.mutateAsync({ ticker, addQty, pricePerUnit: buyPriceNum, accountId: buyAcct })
+        await buy.mutateAsync({ ticker, addQty, pricePerUnit: buyPriceNum, accountId: doDebit ? buyAcct : null })
         toast(`BUY ${ticker.symbol} × ${addQty} · OK`, 'success')
         onClose()
       } catch (e: unknown) {
@@ -242,13 +243,30 @@ export function OperateTickerModal({ ticker, accounts, onClose }: Props) {
             )}
 
             <SectionLabel right="DÉBITO">CUENTA</SectionLabel>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {accounts.map(a => (
-                <div key={a.id} className={`chip ${buyAcct === a.id ? 'on' : ''}`} onClick={() => setBuyAcct(a.id)}>
-                  {a.code}
-                </div>
-              ))}
+            <div style={{ display: 'flex', gap: 6 }}>
+              <div
+                className={`chip ${doDebit ? 'on' : ''}`}
+                onClick={() => setDoDebit(true)}
+              >
+                EN CUENTA
+              </div>
+              <div
+                className={`chip ${!doDebit ? 'on' : ''}`}
+                onClick={() => setDoDebit(false)}
+              >
+                SIN DÉBITO
+              </div>
             </div>
+
+            {doDebit && (
+              <div style={{ marginTop: 10, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {accounts.map(a => (
+                  <div key={a.id} className={`chip ${buyAcct === a.id ? 'on' : ''}`} onClick={() => setBuyAcct(a.id)}>
+                    {a.code}
+                  </div>
+                ))}
+              </div>
+            )}
           </>
         )}
 
