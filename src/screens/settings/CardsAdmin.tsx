@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { SectionLabel } from '../../components/shell/SectionLabel'
-import { useCreditCards, useAddCard, useArchiveCard } from '../../hooks/useCreditCards'
+import { useCreditCards, useAddCard, useUpdateCard, useArchiveCard } from '../../hooks/useCreditCards'
+import type { CreditCard } from '../../types/db'
 
 interface Props {
   onBack: () => void
@@ -13,18 +14,79 @@ const inputStyle: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box',
 }
 
+function EditRow({ card, onDone }: { card: CreditCard; onDone: () => void }) {
+  const [closeDay, setClose] = useState(String(card.close_day))
+  const [dueDay, setDue]     = useState(String(card.due_day))
+  const [err, setErr]        = useState('')
+  const update = useUpdateCard()
+
+  const handleSave = async () => {
+    const cd = parseInt(closeDay)
+    const dd = parseInt(dueDay)
+    if (!cd || cd < 1 || cd > 31) { setErr('INVALID CLOSE DAY (1-31)'); return }
+    if (!dd || dd < 1 || dd > 31) { setErr('INVALID DUE DAY (1-31)'); return }
+    setErr('')
+    try {
+      await update.mutateAsync({ id: card.id, close_day: cd, due_day: dd })
+      onDone()
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : 'ERROR')
+    }
+  }
+
+  return (
+    <div style={{ padding: '10px 0 6px', borderBottom: '1px solid var(--line-2)' }}>
+      <div style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.18em', color: 'var(--ink-4)', marginBottom: 8 }}>
+        EDITANDO · {card.code} · {card.name.toUpperCase()}
+      </div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: err ? 8 : 0 }}>
+        <input
+          value={closeDay} onChange={e => setClose(e.target.value)}
+          placeholder="CLOSE DAY" style={{ ...inputStyle, flex: 1 }}
+          type="number" min={1} max={31}
+        />
+        <input
+          value={dueDay} onChange={e => setDue(e.target.value)}
+          placeholder="DUE DAY" style={{ ...inputStyle, flex: 1 }}
+          type="number" min={1} max={31}
+        />
+      </div>
+      {err && (
+        <div style={{ border: '1px solid var(--red)', color: 'var(--red)', fontFamily: 'var(--mono)', fontSize: 10, padding: '6px 10px', letterSpacing: '0.14em', marginBottom: 8 }}>
+          ✕ {err}
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button className="btn-trigger" onClick={handleSave} disabled={update.isPending} style={{ padding: '10px 16px' }}>
+          <span style={{ fontSize: 11, letterSpacing: '0.22em' }}>{update.isPending ? 'SAVING...' : '▶ GUARDAR'}</span>
+        </button>
+        <button
+          onClick={onDone}
+          style={{
+            background: 'transparent', border: '1px solid var(--line-2)',
+            color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontSize: 11,
+            letterSpacing: '0.18em', padding: '10px 16px', cursor: 'pointer',
+          }}
+        >
+          ESC
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export function CardsAdmin({ onBack }: Props) {
   const { data: cards = [], isLoading } = useCreditCards()
-  const addCard    = useAddCard()
+  const addCard     = useAddCard()
   const archiveCard = useArchiveCard()
 
   const [showForm, setShowForm] = useState(false)
-  const [code, setCode]         = useState('')
-  const [name, setName]         = useState('')
-  const [closeDay, setClose]    = useState('')
-  const [dueDay, setDue]        = useState('')
-  const [currency, setCurrency] = useState('ARS')
-  const [err, setErr]           = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [code, setCode]           = useState('')
+  const [name, setName]           = useState('')
+  const [closeDay, setClose]      = useState('')
+  const [dueDay, setDue]          = useState('')
+  const [err, setErr]             = useState('')
 
   const handleAdd = async () => {
     const cd = parseInt(closeDay)
@@ -34,7 +96,7 @@ export function CardsAdmin({ onBack }: Props) {
     if (!dd || dd < 1 || dd > 31)    { setErr('INVALID DUE DAY (1-31)'); return }
     setErr('')
     try {
-      await addCard.mutateAsync({ code: code.toUpperCase().trim(), name: name.trim(), close_day: cd, due_day: dd, currency })
+      await addCard.mutateAsync({ code: code.toUpperCase().trim(), name: name.trim(), close_day: cd, due_day: dd })
       setCode(''); setName(''); setClose(''); setDue(''); setShowForm(false)
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : 'ERROR')
@@ -61,22 +123,33 @@ export function CardsAdmin({ onBack }: Props) {
       )}
 
       {cards.map(c => (
-        <div key={c.id} className="row" style={{ gridTemplateColumns: 'auto 1fr auto' }}>
-          <div style={{
-            width: 36, height: 36, border: '1px solid var(--amb-dim)', background: '#0a0500',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--amb)',
-          }}>{c.code}</div>
-          <div>
-            <div className="name">{c.name}</div>
-            <div className="sub">CLOSE {String(c.close_day).padStart(2,'0')} · DUE {String(c.due_day).padStart(2,'0')} · {c.currency}</div>
+        <div key={c.id}>
+          <div className="row" style={{ gridTemplateColumns: 'auto 1fr auto auto' }}>
+            <div style={{
+              width: 36, height: 36, border: '1px solid var(--amb-dim)', background: '#0a0500',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--amb)',
+            }}>{c.code}</div>
+            <div>
+              <div className="name">{c.name}</div>
+              <div className="sub">CLOSE {String(c.close_day).padStart(2,'0')} · DUE {String(c.due_day).padStart(2,'0')}</div>
+            </div>
+            <div
+              style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--grn)', cursor: 'pointer', letterSpacing: '0.1em' }}
+              onClick={() => setEditingId(editingId === c.id ? null : c.id)}
+            >
+              {editingId === c.id ? 'ESC' : 'EDIT'}
+            </div>
+            <div
+              style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--red)', cursor: 'pointer', letterSpacing: '0.1em' }}
+              onClick={() => archiveCard.mutate(c.id)}
+            >
+              ARCH
+            </div>
           </div>
-          <div
-            style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--red)', cursor: 'pointer', letterSpacing: '0.1em' }}
-            onClick={() => archiveCard.mutate(c.id)}
-          >
-            ARCH
-          </div>
+          {editingId === c.id && (
+            <EditRow card={c} onDone={() => setEditingId(null)} />
+          )}
         </div>
       ))}
 
@@ -108,12 +181,6 @@ export function CardsAdmin({ onBack }: Props) {
               placeholder="DUE DAY (1-31)" style={{ ...inputStyle, flex: 1 }}
               type="number" min={1} max={31}
             />
-          </div>
-
-          <div style={{ display: 'flex', gap: 6 }}>
-            {['ARS', 'USD'].map(c => (
-              <div key={c} className={`chip ${currency === c ? 'on' : ''}`} onClick={() => setCurrency(c)}>{c}</div>
-            ))}
           </div>
 
           {err && (

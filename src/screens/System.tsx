@@ -6,7 +6,7 @@ import { getToday } from '../lib/time'
 import { useAccounts } from '../hooks/useAccounts'
 import { useCreditCards } from '../hooks/useCreditCards'
 import { useRecurringTemplates } from '../hooks/useRecurring'
-import { useProfile } from '../hooks/useProfile'
+import { useProfile, useUpdateProfile } from '../hooks/useProfile'
 import { useTickers } from '../hooks/useTickers'
 import { useAllTransactions } from '../hooks/useTransactions'
 import { exportLedgerCsv } from '../lib/export'
@@ -17,6 +17,57 @@ import { RecurringAdmin } from './settings/RecurringAdmin'
 import { TickersAdmin } from './settings/TickersAdmin'
 
 type SubScreen = 'accounts' | 'cards' | 'payday' | 'recurring' | 'tickers' | null
+
+function UsdRatePanel({ rate }: { rate: number }) {
+  const [val, setVal]     = useState(String(Math.round(rate)))
+  const [saved, setSaved] = useState(false)
+  const update = useUpdateProfile()
+
+  const handleSave = async () => {
+    const n = parseFloat(val)
+    if (!isFinite(n) || n <= 0) return
+    await update.mutateAsync({ usd_rate: n })
+    setSaved(true)
+    setTimeout(() => setSaved(false), 1800)
+  }
+
+  return (
+    <div style={{ padding: '10px 0 4px' }}>
+      <div style={{
+        fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.18em',
+        color: 'var(--ink-4)', marginBottom: 8,
+      }}>
+        ◆ TIPO DE CAMBIO USD
+      </div>
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-4)', letterSpacing: '0.12em', whiteSpace: 'nowrap' }}>
+          1 USD =
+        </span>
+        <input
+          type="number"
+          value={val}
+          min="1"
+          onChange={e => { setVal(e.target.value); setSaved(false) }}
+          style={{
+            flex: 1, background: '#050505',
+            border: '1px solid var(--line-2)',
+            color: 'var(--ink)', fontFamily: 'var(--mono)', fontSize: 12,
+            letterSpacing: '0.06em', padding: '7px 10px', outline: 'none',
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        />
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-4)', letterSpacing: '0.12em' }}>ARS</span>
+        <div
+          className={`chip ${saved ? 'on' : ''}`}
+          onClick={handleSave}
+          style={{ cursor: 'pointer', whiteSpace: 'nowrap', opacity: update.isPending ? 0.5 : 1 }}
+        >
+          {saved ? 'OK ✓' : 'GUARDAR'}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export function System() {
   const { signOut }              = useAuth()
@@ -101,7 +152,10 @@ export function System() {
               padding: '10px 14px', borderBottom: '1px solid var(--line)',
               fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.18em', color: 'var(--ink-3)',
             }}>◆ GENERAL</div>
-            <div style={{ padding: '0 14px' }}>{col1.map(rowEl)}</div>
+            <div style={{ padding: '0 14px' }}>
+              {col1.map(rowEl)}
+              {profile && <UsdRatePanel rate={profile.usd_rate ?? 1000} />}
+            </div>
           </div>
           {import.meta.env.DEV && (
             <div style={{ marginTop: 14, padding: '0 0' }}>
@@ -132,6 +186,11 @@ export function System() {
     <div className="scroll" style={{ padding: '0 14px 20px' }}>
       <SectionLabel>SETTINGS · SYSTEM</SectionLabel>
       {rows.map(rowEl)}
+      {profile && (
+        <div style={{ padding: '0 0 8px', borderBottom: '1px solid var(--line-2)' }}>
+          <UsdRatePanel rate={profile.usd_rate ?? 1000} />
+        </div>
+      )}
       {signOutRow}
       {import.meta.env.DEV && <DevPanel />}
       {versionFooter}

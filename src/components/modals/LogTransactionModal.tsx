@@ -3,6 +3,7 @@ import { SectionLabel } from '../shell/SectionLabel'
 import { CATEGORIES } from '../../lib/categories'
 import { useAddTransaction } from '../../hooks/useTransactions'
 import { useToast } from '../../context/ToastContext'
+import { fmt } from '../../lib/format'
 import type { Account, CreditCard } from '../../types/db'
 
 interface Props {
@@ -13,6 +14,7 @@ interface Props {
 }
 
 type Direction = 'OUT' | 'IN' | 'PAY'
+type Currency  = 'ARS' | 'USD'
 
 export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Props) {
   const [amount, setAmount]       = useState('0')
@@ -20,6 +22,7 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Pro
   const [direction, setDirection] = useState<Direction>('OUT')
   const [selectedAcct, setAcct]   = useState<string>(accounts[0]?.id ?? '')
   const [selectedCard, setCard]   = useState<string | null>(null)
+  const [currency, setCurrency]   = useState<Currency>('ARS')
   const [desc, setDesc]           = useState('')
   const [err, setErr]             = useState('')
 
@@ -41,9 +44,28 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Pro
   const switchDir = (d: Direction) => {
     setDirection(d)
     setCard(null)
+    setCurrency('ARS')
     setAcct(accounts[0]?.id ?? '')
     if (d === 'OUT') setCat('FOOD')
     else if (d === 'IN') setCat('SALARY')
+  }
+
+  const autoFillFromCard = (cardId: string, cur: Currency) => {
+    const c = cards.find(c => c.id === cardId)
+    if (!c) return
+    const debt = cur === 'USD' ? (c.statement_debt_usd ?? 0) : (c.statement_debt_ars ?? 0)
+    if (debt > 0) setAmount(String(debt))
+  }
+
+  const handleCardSelect = (cardId: string) => {
+    setCard(cardId)
+    if (direction === 'OUT') setAcct('')
+    if (direction === 'PAY') autoFillFromCard(cardId, currency)
+  }
+
+  const handleCurrencySwitch = (cur: Currency) => {
+    setCurrency(cur)
+    if (direction === 'PAY' && selectedCard) autoFillFromCard(selectedCard, cur)
   }
 
   const handleCommit = async () => {
@@ -65,6 +87,7 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Pro
         await addTx.mutateAsync({
           kind:           'CARD_PAYMENT',
           amount:         num,
+          currency,
           category:       'CARD_PAYMENT',
           description:    desc.trim() || undefined,
           account_id:     selectedAcct,
@@ -75,6 +98,7 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Pro
         await addTx.mutateAsync({
           kind:           direction === 'OUT' ? 'EXPENSE' : 'INCOME',
           amount:         num,
+          currency:       direction === 'OUT' && selectedCard ? currency : undefined,
           category:       cat,
           description:    desc.trim() || undefined,
           account_id:     direction === 'OUT' && selectedCard ? null : (selectedAcct || null),
@@ -92,15 +116,15 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Pro
   const color = direction === 'OUT' ? 'var(--amb)' : direction === 'IN' ? 'var(--grn)' : 'var(--amb)'
   const amtPrefix = direction === 'IN' ? '+' : '−'
 
-  const activeCurrency = (() => {
-    if (direction === 'OUT' && selectedCard) {
-      return cards.find(c => c.id === selectedCard)?.currency ?? 'ARS'
-    }
-    if (selectedAcct) {
-      return accounts.find(a => a.id === selectedAcct)?.currency ?? 'ARS'
-    }
+  const activeCurrency: Currency = (() => {
+    if ((direction === 'OUT' && selectedCard) || direction === 'PAY') return currency
+    if (selectedAcct) return (accounts.find(a => a.id === selectedAcct)?.currency as Currency) ?? 'ARS'
     return 'ARS'
   })()
+
+  const showCurrencyToggle = (direction === 'OUT' && !!selectedCard) || direction === 'PAY'
+
+  const selectedCardData = selectedCard ? cards.find(c => c.id === selectedCard) : null
 
   const modeOptions: Array<{ id: Direction; label: string; col: string }> = [
     { id: 'OUT', label: 'DEBIT · GASTO',    col: 'var(--amb)' },
@@ -115,7 +139,7 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Pro
       background: 'rgba(0,0,0,0.92)',
       backdropFilter: 'blur(4px)',
     }}>
-      {/* HUD header — fijo */}
+      {/* HUD header */}
       <div style={{
         padding: '8px 14px',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -129,7 +153,7 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Pro
         <span onClick={onClose} style={{ cursor: 'pointer', color: 'var(--amb)' }}>ESC ✕</span>
       </div>
 
-      {/* Zona scrollable: dirección / categoría / cuenta / tarjeta / desc */}
+      {/* Scrollable zone */}
       <div className="scroll" style={{ padding: '0 14px', flex: 1 }}>
         {/* Direction toggle */}
         <div style={{ display: 'flex', gap: 0, marginTop: 14, border: '1px solid var(--line-2)' }}>
@@ -182,14 +206,57 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Pro
                 <div
                   key={c.id}
                   className={`chip amb ${selectedCard === c.id ? 'on' : ''}`}
-                  onClick={() => {
-                    setCard(c.id)
-                    if (direction === 'OUT') setAcct('')
-                    if (direction === 'PAY' && c.statement_debt > 0)
-                      setAmount(String(c.statement_debt))
-                  }}
+                  onClick={() => handleCardSelect(c.id)}
                 >
                   {c.code} <span style={{ color: 'var(--ink-4)' }}>· {c.name}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* PAY mode: show per-currency statement debt */}
+            {direction === 'PAY' && selectedCardData && (
+              <div style={{
+                marginTop: 8, padding: '8px 10px',
+                border: '1px solid var(--line-2)', background: '#050505',
+                fontFamily: 'var(--mono)', fontSize: 10,
+                display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6,
+              }}>
+                <div>
+                  <div style={{ fontSize: 9, letterSpacing: '0.14em', color: 'var(--ink-4)', marginBottom: 2 }}>RESUMEN ARS</div>
+                  <div style={{ color: (selectedCardData.statement_debt_ars ?? 0) > 0 ? 'var(--amb)' : 'var(--ink-4)', fontVariantNumeric: 'tabular-nums' }}>
+                    −{fmt(selectedCardData.statement_debt_ars ?? 0).intStr}<span style={{ color: 'var(--ink-4)' }}>.{fmt(selectedCardData.statement_debt_ars ?? 0).centStr}</span>
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 9, letterSpacing: '0.14em', color: 'var(--ink-4)', marginBottom: 2 }}>RESUMEN USD</div>
+                  <div style={{ color: (selectedCardData.statement_debt_usd ?? 0) > 0 ? 'var(--amb)' : 'var(--ink-4)', fontVariantNumeric: 'tabular-nums' }}>
+                    −{fmt(selectedCardData.statement_debt_usd ?? 0).intStr}<span style={{ color: 'var(--ink-4)' }}>.{fmt(selectedCardData.statement_debt_usd ?? 0).centStr}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Currency toggle — shown when card is selected in OUT or PAY mode */}
+        {showCurrencyToggle && (
+          <>
+            <SectionLabel right="MONEDA">MONEDA DE CARGO</SectionLabel>
+            <div style={{ display: 'flex', border: '1px solid var(--line-2)' }}>
+              {(['ARS', 'USD'] as Currency[]).map((cur, i) => (
+                <div
+                  key={cur}
+                  onClick={() => handleCurrencySwitch(cur)}
+                  style={{
+                    flex: 1, padding: '10px 0', textAlign: 'center',
+                    fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em',
+                    cursor: 'pointer',
+                    background: currency === cur ? 'rgba(255,176,0,0.08)' : 'transparent',
+                    color: currency === cur ? 'var(--amb)' : 'var(--ink-3)',
+                    borderRight: i === 0 ? '1px solid var(--line-2)' : 0,
+                  }}
+                >
+                  {cur}
                 </div>
               ))}
             </div>
@@ -213,7 +280,7 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Pro
         <div style={{ height: 14 }} />
       </div>
 
-      {/* Zona fija: amount display + keypad + commit */}
+      {/* Fixed: amount display + keypad + commit */}
       <div style={{ flexShrink: 0, borderTop: '1px solid var(--line-2)' }}>
         {/* Amount display */}
         <div style={{

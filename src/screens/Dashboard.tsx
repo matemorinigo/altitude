@@ -14,6 +14,7 @@ import { RecurringPromptModal } from '../components/modals/RecurringPromptModal'
 import { CardClosePromptModal } from '../components/modals/CardClosePromptModal'
 import { TransferModal } from '../components/modals/TransferModal'
 import { AccountDetail } from './AccountDetail'
+import { CreditCardDetail } from './CreditCardDetail'
 import { useAccounts } from '../hooks/useAccounts'
 import { useCreditCards } from '../hooks/useCreditCards'
 import { useRecentTransactions, useCycleTransactions } from '../hooks/useTransactions'
@@ -31,6 +32,7 @@ export function Dashboard() {
   const [cardToClose, setCardToClose]       = useState<CreditCard | null>(null)
   const [currencyMode, setCurrencyMode]     = useState<'ARS' | 'USD'>('ARS')
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null)
+  const [selectedCard, setSelectedCard]       = useState<CreditCard | null>(null)
   const [transferFrom, setTransferFrom]     = useState<Account | null>(null)
   const isDesktop                       = useIsDesktop()
   const qc                              = useQueryClient()
@@ -55,15 +57,12 @@ export function Dashboard() {
   const burnPerDay = cycle.daysIn > 0 ? totalBurn / cycle.daysIn : 0
 
   const arsAccounts  = accounts.filter(a => a.currency === 'ARS')
-  const arsCards     = cards.filter(c => c.currency === 'ARS')
-  const arsBankTotal = arsAccounts.filter(a => !a.exclude_from_total).reduce((s, a) => s + (a.balance ?? 0), 0)
-  const arsCardDebt  = arsCards.reduce((s, c) => s + (c.current_debt ?? 0) + (c.statement_debt ?? 0), 0)
-  const arsReal      = arsBankTotal - arsCardDebt
-
   const usdAccounts  = accounts.filter(a => a.currency === 'USD')
-  const usdCards     = cards.filter(c => c.currency === 'USD')
+  const arsBankTotal = arsAccounts.filter(a => !a.exclude_from_total).reduce((s, a) => s + (a.balance ?? 0), 0)
   const usdBankTotal = usdAccounts.filter(a => !a.exclude_from_total).reduce((s, a) => s + (a.balance ?? 0), 0)
-  const usdCardDebt  = usdCards.reduce((s, c) => s + (c.current_debt ?? 0) + (c.statement_debt ?? 0), 0)
+  const arsCardDebt  = cards.reduce((s, c) => s + (c.current_debt_ars ?? 0) + (c.statement_debt_ars ?? 0), 0)
+  const usdCardDebt  = cards.reduce((s, c) => s + (c.current_debt_usd ?? 0) + (c.statement_debt_usd ?? 0), 0)
+  const arsReal      = arsBankTotal - arsCardDebt
   const usdReal      = usdBankTotal - usdCardDebt
 
   const bankTotal = currencyMode === 'USD' ? usdBankTotal : arsBankTotal
@@ -201,7 +200,7 @@ export function Dashboard() {
     <>
       {cards.length === 0
         ? <EmptyHint>NO CARDS · ADD IN SYS</EmptyHint>
-        : cards.map(c => <CardRow key={c.id} {...c} />)
+        : cards.map(c => <CardRow key={c.id} {...c} onClick={() => setSelectedCard(c)} />)
       }
     </>
   )
@@ -243,6 +242,11 @@ export function Dashboard() {
         />
       </>
     )
+  }
+
+  // Card detail sub-screen
+  if (selectedCard) {
+    return <CreditCardDetail card={selectedCard} onBack={() => setSelectedCard(null)} />
   }
 
   if (isDesktop) {

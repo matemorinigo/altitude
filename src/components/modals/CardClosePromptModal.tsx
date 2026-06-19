@@ -17,8 +17,10 @@ export function CardClosePromptModal({ card, onClose }: Props) {
 
   const now = new Date()
   const monthName = `${MONTHS[now.getMonth()]} ${now.getFullYear()}`
-  const { intStr: currI, centStr: currC } = fmt(card.current_debt)
-  const { intStr: stmtI, centStr: stmtC } = fmt(card.statement_debt)
+  const currArs = card.current_debt_ars ?? 0
+  const currUsd = card.current_debt_usd ?? 0
+  const stmtArs = card.statement_debt_ars ?? 0
+  const stmtUsd = card.statement_debt_usd ?? 0
 
   const handleConfirm = async () => {
     try {
@@ -72,15 +74,28 @@ export function CardClosePromptModal({ card, onClose }: Props) {
           padding: '14px 16px', border: '1px solid var(--line-2)', background: '#050505',
           fontFamily: 'var(--mono)',
         }}>
-          <div style={{ fontSize: 9, letterSpacing: '0.18em', color: 'var(--ink-4)', marginBottom: 6 }}>
+          <div style={{ fontSize: 9, letterSpacing: '0.18em', color: 'var(--ink-4)', marginBottom: 10 }}>
             SE VUELCA AL RESUMEN
           </div>
-          <div style={{ fontSize: 36, color: 'var(--amb)', fontVariantNumeric: 'tabular-nums' }}>
-            −{currI}<span style={{ color: 'var(--ink-4)', fontSize: 22 }}>.{currC}</span>
-          </div>
+          {currArs > 0 && (
+            <div style={{ marginBottom: currUsd > 0 ? 8 : 0 }}>
+              <div style={{ fontSize: 9, letterSpacing: '0.14em', color: 'var(--ink-4)', marginBottom: 2 }}>ARS</div>
+              <div style={{ fontSize: 32, color: 'var(--amb)', fontVariantNumeric: 'tabular-nums' }}>
+                −{fmt(currArs).intStr}<span style={{ color: 'var(--ink-4)', fontSize: 20 }}>.{fmt(currArs).centStr}</span>
+              </div>
+            </div>
+          )}
+          {currUsd > 0 && (
+            <div>
+              <div style={{ fontSize: 9, letterSpacing: '0.14em', color: 'var(--ink-4)', marginBottom: 2 }}>USD</div>
+              <div style={{ fontSize: 32, color: 'var(--amb)', fontVariantNumeric: 'tabular-nums' }}>
+                −{fmt(currUsd).intStr}<span style={{ color: 'var(--ink-4)', fontSize: 20 }}>.{fmt(currUsd).centStr}</span>
+              </div>
+            </div>
+          )}
         </div>
 
-        {card.statement_debt > 0 && (
+        {(stmtArs > 0 || stmtUsd > 0) && (
           <>
             <SectionLabel right="PENDIENTE">RESUMEN ANTERIOR</SectionLabel>
             <div style={{
@@ -88,10 +103,18 @@ export function CardClosePromptModal({ card, onClose }: Props) {
               fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink-3)',
               fontVariantNumeric: 'tabular-nums',
             }}>
-              −{stmtI}<span style={{ color: 'var(--ink-4)' }}>.{stmtC}</span>
-              <span style={{ fontSize: 9, letterSpacing: '0.14em', marginLeft: 8, color: 'var(--ink-4)' }}>
-                AÚN SIN PAGAR
-              </span>
+              {stmtArs > 0 && (
+                <div style={{ marginBottom: stmtUsd > 0 ? 4 : 0 }}>
+                  −{fmt(stmtArs).intStr}<span style={{ color: 'var(--ink-4)' }}>.{fmt(stmtArs).centStr}</span>
+                  <span style={{ fontSize: 9, letterSpacing: '0.14em', marginLeft: 8, color: 'var(--ink-4)' }}>ARS · AÚN SIN PAGAR</span>
+                </div>
+              )}
+              {stmtUsd > 0 && (
+                <div>
+                  −{fmt(stmtUsd).intStr}<span style={{ color: 'var(--ink-4)' }}>.{fmt(stmtUsd).centStr}</span>
+                  <span style={{ fontSize: 9, letterSpacing: '0.14em', marginLeft: 8, color: 'var(--ink-4)' }}>USD · AÚN SIN PAGAR</span>
+                </div>
+              )}
             </div>
           </>
         )}

@@ -84,45 +84,48 @@ export type Database = {
           close_day: number
           code: string
           created_at: string
-          currency: string
-          current_debt: number
+          current_debt_ars: number
+          current_debt_usd: number
           due_day: number
           id: string
           is_archived: boolean
           last_closed_at: string | null
           name: string
           sort_order: number
-          statement_debt: number
+          statement_debt_ars: number
+          statement_debt_usd: number
           user_id: string
         }
         Insert: {
           close_day: number
           code: string
           created_at?: string
-          currency?: string
-          current_debt?: number
+          current_debt_ars?: number
+          current_debt_usd?: number
           due_day: number
           id?: string
           is_archived?: boolean
           last_closed_at?: string | null
           name: string
           sort_order?: number
-          statement_debt?: number
+          statement_debt_ars?: number
+          statement_debt_usd?: number
           user_id: string
         }
         Update: {
           close_day?: number
           code?: string
           created_at?: string
-          currency?: string
-          current_debt?: number
+          current_debt_ars?: number
+          current_debt_usd?: number
           due_day?: number
           id?: string
           is_archived?: boolean
           last_closed_at?: string | null
           name?: string
           sort_order?: number
-          statement_debt?: number
+          statement_debt_ars?: number
+          statement_debt_usd?: number
           user_id?: string
         }
         Relationships: []
@@ -137,6 +140,7 @@ export type Database = {
           payday_expected_amount: number | null
           payday_kind: string
           payday_nth_business_day: number | null
+          usd_rate: number
         }
         Insert: {
           base_currency?: string
@@ -147,6 +151,7 @@ export type Database = {
           payday_expected_amount?: number | null
           payday_kind?: string
           payday_nth_business_day?: number | null
+          usd_rate?: number
         }
         Update: {
           base_currency?: string
@@ -157,6 +162,7 @@ export type Database = {
           payday_expected_amount?: number | null
           payday_kind?: string
           payday_nth_business_day?: number | null
+          usd_rate?: number
         }
         Relationships: []
       }
@@ -565,4 +571,3 @@ export type TransactionKind  = 'EXPENSE' | 'INCOME' | 'TRANSFER' | 'CARD_PAYMENT
 export type InstrumentKind   = 'CEDEAR' | 'STOCK_AR' | 'BOND_AR' | 'NOTE_AR' | 'CORP_AR' | 'STOCK_USA' | 'ADR_USA'
 export type PaydayKind       = 'DAY_OF_MONTH' | 'NTH_BUSINESS_DAY'
 export type ScheduleKind     = 'DAY_OF_MONTH' | 'NTH_BUSINESS_DAY'
-
