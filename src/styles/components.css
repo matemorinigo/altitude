@@ -162,6 +162,7 @@
 .scroll {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   scrollbar-width: none;
   position: relative;
   z-index: 1;

@@ -84,11 +84,11 @@ export function useCycleTransactions(since: Date | null) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('transactions')
-        .select('kind, amount')
+        .select('kind, amount, category')
         .gte('occurred_at', since!.toISOString())
         .in('kind', ['EXPENSE', 'CARD_PAYMENT'])
       if (error) throw error
-      return data as { kind: string; amount: number }[]
+      return data as { kind: string; amount: number; category: string }[]
     },
   })
 }

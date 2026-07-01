@@ -136,6 +136,7 @@ function Shell() {
         {tab === 'dash'   && <Dashboard />}
         {tab === 'hangar' && <Hangar />}
         {tab === 'log'    && <Ledger />}
+        {tab === 'anly'   && <Analytics />}
         {tab === 'sys'    && <System />}
 
         <TabBar active={tab} onChange={setTab} />

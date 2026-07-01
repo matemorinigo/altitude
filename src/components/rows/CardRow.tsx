@@ -9,12 +9,12 @@ export function CardRow({ code, name, close_day, due_day, current_debt_ars, stat
   const pad = (n: number) => String(n).padStart(2, '0')
   const hasUsd = (current_debt_usd ?? 0) > 0 || (statement_debt_usd ?? 0) > 0
 
-  const DebtBlock = ({ stmtAmt, currAmt, label }: { stmtAmt: number; currAmt: number; label: string }) => (
+  const DebtBlock = ({ stmtAmt, currAmt, label, showLabel }: { stmtAmt: number; currAmt: number; label: string; showLabel: boolean }) => (
     <div style={{ marginBottom: hasUsd ? 4 : 0 }}>
       {stmtAmt > 0 && (
         <div className="val amb">
           RESUMEN −{fmt(stmtAmt).intStr}<span style={{ color: 'var(--ink-4)' }}>.{fmt(stmtAmt).centStr}</span>
-          <span style={{ fontSize: 9, color: 'var(--ink-4)', marginLeft: 4 }}>{label}</span>
+          {showLabel && <span style={{ fontSize: 9, color: 'var(--ink-4)', marginLeft: 4 }}>{label}</span>}
         </div>
       )}
       <div style={{
@@ -22,7 +22,7 @@ export function CardRow({ code, name, close_day, due_day, current_debt_ars, stat
         color: currAmt > 0 ? 'var(--ink-2)' : 'var(--ink-4)',
       }}>
         CORRIENTE −{fmt(currAmt).intStr}<span style={{ color: 'var(--ink-4)' }}>.{fmt(currAmt).centStr}</span>
-        <span style={{ fontSize: 9, color: 'var(--ink-4)', marginLeft: 4 }}>{label}</span>
+        {showLabel && <span style={{ fontSize: 9, color: 'var(--ink-4)', marginLeft: 4 }}>{label}</span>}
       </div>
     </div>
   )
@@ -43,9 +43,9 @@ export function CardRow({ code, name, close_day, due_day, current_debt_ars, stat
         <div className="sub">CLOSE {pad(close_day)} · DUE {pad(due_day)}</div>
       </div>
       <div style={{ textAlign: 'right' }}>
-        <DebtBlock stmtAmt={statement_debt_ars ?? 0} currAmt={current_debt_ars ?? 0} label="ARS" />
+        <DebtBlock stmtAmt={statement_debt_ars ?? 0} currAmt={current_debt_ars ?? 0} label="ARS" showLabel={hasUsd} />
         {hasUsd && (
-          <DebtBlock stmtAmt={statement_debt_usd ?? 0} currAmt={current_debt_usd ?? 0} label="USD" />
+          <DebtBlock stmtAmt={statement_debt_usd ?? 0} currAmt={current_debt_usd ?? 0} label="USD" showLabel />
         )}
       </div>
     </div>

@@ -6,6 +6,7 @@ import { useAllTransactions, type LedgerFilters } from '../hooks/useTransactions
 import { useIsDesktop } from '../hooks/useIsDesktop'
 import { useCategories } from '../hooks/useCategories'
 import { fmt } from '../lib/format'
+import { isSpendTx, isIncomeTx } from '../lib/transactions'
 
 type KindFilter = 'ALL' | 'EXPENSE' | 'INCOME' | 'CARD_PAYMENT' | 'RECTIFICATION'
 type CurrencyFilter = 'ARS' | 'USD'
@@ -35,11 +36,11 @@ export function Ledger() {
   const { data: txs = [], isLoading, isError, refetch } = useAllTransactions(filters)
 
   const totalExpense = txs
-    .filter(t => t.kind === 'EXPENSE' || t.kind === 'CARD_PAYMENT')
+    .filter(isSpendTx)
     .reduce((s, t) => s + t.amount, 0)
 
   const totalIncome = txs
-    .filter(t => t.kind === 'INCOME')
+    .filter(isIncomeTx)
     .reduce((s, t) => s + t.amount, 0)
 
   const net = totalIncome - totalExpense

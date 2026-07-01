@@ -4,6 +4,7 @@ import { TelemetryBar } from '../components/primitives/TelemetryBar'
 import { RectifyModal } from '../components/modals/RectifyModal'
 import { useAccountTransactions } from '../hooks/useTransactions'
 import { fmt } from '../lib/format'
+import { isSpendTx, isIncomeTx } from '../lib/transactions'
 import type { Account } from '../types/db'
 
 interface Props {
@@ -74,8 +75,8 @@ export function AccountDetail({ account, cycleFrom, accounts, onBack, onTransfer
     regularTxs.filter(t => new Date(t.occurred_at) >= cycleFrom),
     [regularTxs, cycleFrom]
   )
-  const cycleIn  = cycleTxs.filter(t => t.kind === 'INCOME').reduce((s, t) => s + t.amount, 0)
-  const cycleOut = cycleTxs.filter(t => t.kind === 'EXPENSE' || t.kind === 'CARD_PAYMENT').reduce((s, t) => s + t.amount, 0)
+  const cycleIn  = cycleTxs.filter(isIncomeTx).reduce((s, t) => s + t.amount, 0)
+  const cycleOut = cycleTxs.filter(isSpendTx).reduce((s, t) => s + t.amount, 0)
   const cycleNet = cycleIn - cycleOut
 
   // 30-day sparkline — reverse-engineer daily balances from current balance + transactions
@@ -108,7 +109,7 @@ export function AccountDetail({ account, cycleFrom, accounts, onBack, onTransfer
   // Category breakdown (expenses only, no rectifications)
   const catBreakdown = useMemo(() => {
     const map: Record<string, number> = {}
-    regularTxs.filter(t => t.kind === 'EXPENSE' || t.kind === 'CARD_PAYMENT').forEach(t => {
+    regularTxs.filter(isSpendTx).forEach(t => {
       map[t.category] = (map[t.category] ?? 0) + t.amount
     })
     const total = Object.values(map).reduce((s, v) => s + v, 0) || 1

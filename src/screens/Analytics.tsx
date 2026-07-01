@@ -5,6 +5,7 @@ import { TelemetryBar } from '../components/primitives/TelemetryBar'
 import { useMonthlyTransactions } from '../hooks/useAnalytics'
 import { useCategories } from '../hooks/useCategories'
 import { fmt } from '../lib/format'
+import { isSpendTx, isIncomeTx } from '../lib/transactions'
 
 type Currency = 'ARS' | 'USD'
 
@@ -22,27 +23,29 @@ export function Analytics() {
   const filtered = useMemo(() => txs.filter(t => t.currency === currency), [txs, currency])
 
   const prevMonth = () => {
+    setSelectedDay(null)
     if (month === 0) { setMonth(11); setYear(y => y - 1) }
     else setMonth(m => m - 1)
   }
   const nextMonth = () => {
+    setSelectedDay(null)
     if (month === 11) { setMonth(0); setYear(y => y + 1) }
     else setMonth(m => m + 1)
   }
 
   // Summary
   const totalExpense = useMemo(() =>
-    filtered.filter(t => t.kind === 'EXPENSE' || t.kind === 'CARD_PAYMENT').reduce((s, t) => s + t.amount, 0),
+    filtered.filter(isSpendTx).reduce((s, t) => s + t.amount, 0),
     [filtered])
   const totalIncome = useMemo(() =>
-    filtered.filter(t => t.kind === 'INCOME').reduce((s, t) => s + t.amount, 0),
+    filtered.filter(isIncomeTx).reduce((s, t) => s + t.amount, 0),
     [filtered])
   const net = totalIncome - totalExpense
 
   // Category breakdown
   const catBreakdown = useMemo(() => {
     const map: Record<string, number> = {}
-    filtered.filter(t => t.kind === 'EXPENSE' || t.kind === 'CARD_PAYMENT').forEach(t => {
+    filtered.filter(isSpendTx).forEach(t => {
       map[t.category] = (map[t.category] ?? 0) + t.amount
     })
     const total = Object.values(map).reduce((s, v) => s + v, 0) || 1
@@ -57,7 +60,7 @@ export function Analytics() {
   // Origin breakdown (account/card)
   const originBreakdown = useMemo(() => {
     const map: Record<string, { name: string; val: number; isCard: boolean }> = {}
-    filtered.filter(t => t.kind === 'EXPENSE' || t.kind === 'CARD_PAYMENT').forEach(t => {
+    filtered.filter(isSpendTx).forEach(t => {
       if (t.credit_cards) {
         const key = `card:${t.credit_card_id}`
         if (!map[key]) map[key] = { name: t.credit_cards.code, val: 0, isCard: true }
@@ -81,8 +84,8 @@ export function Analytics() {
     filtered.forEach(t => {
       const d = new Date(t.occurred_at).getDate() - 1
       if (d < 0 || d >= daysInMonth) return
-      if (t.kind === 'EXPENSE' || t.kind === 'CARD_PAYMENT') days[d].expense += t.amount
-      else if (t.kind === 'INCOME') days[d].income += t.amount
+      if (isSpendTx(t)) days[d].expense += t.amount
+      else if (isIncomeTx(t)) days[d].income += t.amount
     })
     const maxVal = Math.max(...days.map(d => Math.max(d.expense, d.income)), 1)
     return days.map((d, i) => ({ day: i + 1, ...d, maxVal }))
@@ -91,10 +94,28 @@ export function Analytics() {
   // Top transactions
   const topTxs = useMemo(() =>
     [...filtered]
-      .filter(t => t.kind === 'EXPENSE' || t.kind === 'CARD_PAYMENT')
+      .filter(isSpendTx)
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 5),
     [filtered])
+
+  // Full month expense list
+  const [showAllExpenses, setShowAllExpenses] = useState(false)
+  const monthExpenses = useMemo(() =>
+    [...filtered]
+      .filter(isSpendTx)
+      .sort((a, b) => +new Date(b.occurred_at) - +new Date(a.occurred_at)),
+    [filtered])
+  const visibleExpenses = showAllExpenses ? monthExpenses : monthExpenses.slice(0, 8)
+
+  // Daily drilldown
+  const [selectedDay, setSelectedDay] = useState<number | null>(null)
+  const dayTxs = useMemo(() => {
+    if (selectedDay == null) return []
+    return filtered
+      .filter(t => isSpendTx(t) && new Date(t.occurred_at).getDate() === selectedDay)
+      .sort((a, b) => +new Date(b.occurred_at) - +new Date(a.occurred_at))
+  }, [filtered, selectedDay])
 
   const currSymbol = currency === 'USD' ? 'U$S' : '$'
 
@@ -232,11 +253,19 @@ export function Analytics() {
           }}>
             {dailyData.map(d => {
               const hExp = d.maxVal > 0 ? (d.expense / d.maxVal) * 100 : 0
+              const isSelected = selectedDay === d.day
               return (
-                <div key={d.day} style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: '100%' }}>
+                <div
+                  key={d.day}
+                  onClick={() => d.expense > 0 && setSelectedDay(sel => sel === d.day ? null : d.day)}
+                  style={{
+                    flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: '100%',
+                    cursor: d.expense > 0 ? 'pointer' : 'default',
+                  }}
+                >
                   <div style={{
                     height: `${hExp}%`, minHeight: d.expense > 0 ? 1 : 0,
-                    background: 'var(--amb)',
+                    background: isSelected ? 'var(--grn)' : 'var(--amb)',
                     transition: 'height 0.3s ease',
                   }} />
                 </div>
@@ -251,6 +280,30 @@ export function Analytics() {
             <span>01</span>
             <span>{dailyData.length}</span>
           </div>
+
+          {selectedDay != null && (
+            <div style={{ marginTop: 10 }}>
+              <SectionLabel right={`DÍA ${String(selectedDay).padStart(2, '0')}`}>GASTOS DEL DÍA</SectionLabel>
+              {dayTxs.length === 0 ? (
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-4)', letterSpacing: '0.14em', padding: '8px 0' }}>
+                  SIN GASTOS ESTE DÍA
+                </div>
+              ) : (
+                <div className="panel tight">
+                  <span className="brackets"><i /></span>
+                  {dayTxs.map((t, i) => (
+                    <TxRow
+                      key={t.id}
+                      tx={t}
+                      acctCode={t.accounts?.code ?? t.credit_cards?.code}
+                      isCard={!!t.credit_cards?.code}
+                      last={i === dayTxs.length - 1}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -267,6 +320,34 @@ export function Analytics() {
                 acctCode={t.accounts?.code ?? t.credit_cards?.code}
                 isCard={!!t.credit_cards?.code}
                 last={i === topTxs.length - 1}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Full month expense list */}
+      {monthExpenses.length > 0 && (
+        <div style={{ padding: '6px 14px 0' }}>
+          <SectionLabel
+            right={
+              <span
+                onClick={() => setShowAllExpenses(v => !v)}
+                style={{ cursor: 'pointer', userSelect: 'none' }}
+              >
+                {showAllExpenses ? 'MOSTRAR MENOS' : `VER TODO (${monthExpenses.length})`}
+              </span>
+            }
+          >GASTOS DEL MES</SectionLabel>
+          <div className="panel tight">
+            <span className="brackets"><i /></span>
+            {visibleExpenses.map((t, i) => (
+              <TxRow
+                key={t.id}
+                tx={t}
+                acctCode={t.accounts?.code ?? t.credit_cards?.code}
+                isCard={!!t.credit_cards?.code}
+                last={i === visibleExpenses.length - 1}
               />
             ))}
           </div>

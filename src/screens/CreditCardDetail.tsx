@@ -5,6 +5,7 @@ import { RectifyModal } from '../components/modals/RectifyModal'
 import { useCreditCardTransactions } from '../hooks/useCreditCards'
 import { useProfile } from '../hooks/useProfile'
 import { fmt } from '../lib/format'
+import { NON_SPEND_CATEGORIES } from '../lib/transactions'
 import type { CreditCard } from '../types/db'
 
 interface Props {
@@ -25,7 +26,7 @@ export function CreditCardDetail({ card, onBack }: Props) {
 
   const catBreakdown = useMemo(() => {
     const map: Record<string, number> = {}
-    txs.filter(t => t.kind === 'EXPENSE').forEach(t => {
+    txs.filter(t => t.kind === 'EXPENSE' && !NON_SPEND_CATEGORIES.includes(t.category)).forEach(t => {
       map[t.category] = (map[t.category] ?? 0) + t.amount
     })
     const total = Object.values(map).reduce((s, v) => s + v, 0) || 1

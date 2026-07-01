@@ -25,6 +25,7 @@ import { ensureScheduledEvents, nextPaydayDate, cycleProgress } from '../lib/pay
 import { needsStatementClose } from '../lib/cardCycle'
 import { getToday } from '../lib/time'
 import { fmt } from '../lib/format'
+import { isSpendTx } from '../lib/transactions'
 import type { ScheduledEvent, RecurringTemplate, CreditCard, Account } from '../types/db'
 
 export function Dashboard() {
@@ -53,7 +54,7 @@ export function Dashboard() {
     : { daysTotal: 30, daysIn: today.getDate(), daysLeft: 30 - today.getDate(), paydayLabel: '—' }
 
   const { data: cycleTxs = [] } = useCycleTransactions(cycleFrom)
-  const totalBurn  = cycleTxs.reduce((s, t) => s + t.amount, 0)
+  const totalBurn  = cycleTxs.filter(isSpendTx).reduce((s, t) => s + t.amount, 0)
   const burnPerDay = cycle.daysIn > 0 ? totalBurn / cycle.daysIn : 0
 
   const arsAccounts  = accounts.filter(a => a.currency === 'ARS')
