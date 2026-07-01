@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { SectionLabel } from '../shell/SectionLabel'
-import { CATEGORIES } from '../../lib/categories'
+import { useCategories } from '../../hooks/useCategories'
 import { useAddTransaction } from '../../hooks/useTransactions'
 import { useToast } from '../../context/ToastContext'
 import { fmt } from '../../lib/format'
@@ -28,9 +28,10 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Pro
 
   const addTx = useAddTransaction()
   const toast = useToast()
+  const { data: allCategories = [] } = useCategories()
 
-  const expenseCats = CATEGORIES.filter(c => c.kind === 'EXPENSE').map(c => c.code)
-  const incomeCats  = CATEGORIES.filter(c => c.kind === 'INCOME').map(c => c.code)
+  const expenseCats = allCategories.filter(c => c.kind === 'EXPENSE' && !c.is_system).map(c => c.code)
+  const incomeCats  = allCategories.filter(c => c.kind === 'INCOME' && !c.is_system).map(c => c.code)
   const cats        = direction === 'OUT' ? expenseCats : direction === 'IN' ? incomeCats : []
 
   const tap = (k: string) => {

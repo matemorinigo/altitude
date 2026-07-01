@@ -4,7 +4,8 @@ const ITEMS: { id: TabId; ic: string; label: string; code: string }[] = [
   { id: 'dash',   ic: '⌖', label: 'DASHBOARD', code: '01' },
   { id: 'hangar', ic: '▤', label: 'HANGAR',    code: '02' },
   { id: 'log',    ic: '≡', label: 'LEDGER',    code: '03' },
-  { id: 'sys',    ic: '⚙', label: 'SYSTEM',    code: '04' },
+  { id: 'anly',   ic: '▦', label: 'ANALYTICS', code: '04' },
+  { id: 'sys',    ic: '⚙', label: 'SYSTEM',    code: '05' },
 ]
 
 interface Props {

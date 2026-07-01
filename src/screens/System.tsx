@@ -15,8 +15,9 @@ import { CardsAdmin } from './settings/CardsAdmin'
 import { PaydayAdmin } from './settings/PaydayAdmin'
 import { RecurringAdmin } from './settings/RecurringAdmin'
 import { TickersAdmin } from './settings/TickersAdmin'
+import { CategoriesAdmin } from './settings/CategoriesAdmin'
 
-type SubScreen = 'accounts' | 'cards' | 'payday' | 'recurring' | 'tickers' | null
+type SubScreen = 'accounts' | 'cards' | 'payday' | 'recurring' | 'tickers' | 'categories' | null
 
 function UsdRatePanel({ rate }: { rate: number }) {
   const [val, setVal]     = useState(String(Math.round(rate)))
@@ -91,7 +92,8 @@ export function System() {
   if (sub === 'cards')     return <CardsAdmin      onBack={() => setSub(null)} />
   if (sub === 'payday')    return <PaydayAdmin     onBack={() => setSub(null)} />
   if (sub === 'recurring') return <RecurringAdmin  onBack={() => setSub(null)} />
-  if (sub === 'tickers')   return <TickersAdmin    onBack={() => setSub(null)} />
+  if (sub === 'tickers')    return <TickersAdmin    onBack={() => setSub(null)} />
+  if (sub === 'categories') return <CategoriesAdmin onBack={() => setSub(null)} />
 
   const paydayValue = profile
     ? profile.payday_kind === 'NTH_BUSINESS_DAY'
@@ -107,6 +109,7 @@ export function System() {
     { label: 'CREDIT CARDS',  value: `${cards.length} OBJ`,                   action: () => setSub('cards') },
     { label: 'RECURRING',     value: `${templates.filter(t => t.is_active).length} ACTIVE`, action: () => setSub('recurring') },
     { label: 'TICKERS',       value: `${tickers.length} HELD`,                             action: () => setSub('tickers') },
+    { label: 'CATEGORIES',    value: 'CUSTOM',                                             action: () => setSub('categories') },
     { label: 'EXPORT LEDGER', value: exporting ? 'EXPORTING...' : `CSV · ${allTxs.length} TX`, action: handleExport },
   ]
 

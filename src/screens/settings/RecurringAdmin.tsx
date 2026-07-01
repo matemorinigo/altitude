@@ -3,7 +3,7 @@ import { SectionLabel } from '../../components/shell/SectionLabel'
 import { useRecurringTemplates, useAddRecurring, useToggleRecurring, useDeleteRecurring } from '../../hooks/useRecurring'
 import { useAccounts } from '../../hooks/useAccounts'
 import { useCreditCards } from '../../hooks/useCreditCards'
-import { CATEGORIES } from '../../lib/categories'
+import { useCategories } from '../../hooks/useCategories'
 import type { RecurringTemplate, ScheduleKind } from '../../types/db'
 
 interface Props { onBack: () => void }
@@ -36,8 +36,9 @@ export function RecurringAdmin({ onBack }: Props) {
   const [isPayday,      setIsPayday]     = useState(false)
   const [err,           setErr]          = useState('')
 
-  const expenseCats = CATEGORIES.filter(c => c.kind === 'EXPENSE').map(c => c.code)
-  const incomeCats  = CATEGORIES.filter(c => c.kind === 'INCOME').map(c => c.code)
+  const { data: allCategories = [] } = useCategories()
+  const expenseCats = allCategories.filter(c => c.kind === 'EXPENSE' && !c.is_system).map(c => c.code)
+  const incomeCats  = allCategories.filter(c => c.kind === 'INCOME' && !c.is_system).map(c => c.code)
   const cats        = kind === 'EXPENSE' ? expenseCats : incomeCats
 
   const resetForm = () => {

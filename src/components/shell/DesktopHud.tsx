@@ -4,7 +4,7 @@ import type { TabId } from './TabBar'
 
 const TZ = 'America/Argentina/Buenos_Aires'
 const TAB_FLT: Record<TabId, string> = {
-  dash: 'DASHBOARD', hangar: 'HANGAR', log: 'LEDGER', sys: 'SYSTEM',
+  dash: 'DASHBOARD', hangar: 'HANGAR', log: 'LEDGER', anly: 'ANALYTICS', sys: 'SYSTEM',
 }
 
 export function DesktopHud({ tab }: { tab: TabId }) {

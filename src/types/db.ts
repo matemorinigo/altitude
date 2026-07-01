@@ -79,6 +79,39 @@ export type Database = {
         }
         Relationships: []
       }
+      categories: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          is_system: boolean
+          kind: string
+          label: string
+          sort_order: number
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          kind: string
+          label: string
+          sort_order?: number
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          kind?: string
+          label?: string
+          sort_order?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       credit_cards: {
         Row: {
           close_day: number
@@ -345,6 +378,7 @@ export type Database = {
           created_at: string
           credit_card_id: string | null
           currency: string
+          debt_target: string | null
           description: string | null
           id: string
           kind: string
@@ -360,6 +394,7 @@ export type Database = {
           created_at?: string
           credit_card_id?: string | null
           currency?: string
+          debt_target?: string | null
           description?: string | null
           id?: string
           kind: string
@@ -375,6 +410,7 @@ export type Database = {
           created_at?: string
           credit_card_id?: string | null
           currency?: string
+          debt_target?: string | null
           description?: string | null
           id?: string
           kind?: string
@@ -556,6 +592,7 @@ export const Constants = {
   },
 } as const
 
+
 // Convenience row-level aliases
 export type Account           = Database['public']['Tables']['accounts']['Row']
 export type Transaction       = Database['public']['Tables']['transactions']['Row']
@@ -564,6 +601,7 @@ export type Profile           = Database['public']['Tables']['profiles']['Row']
 export type Ticker            = Database['public']['Tables']['tickers']['Row']
 export type RecurringTemplate = Database['public']['Tables']['recurring_templates']['Row']
 export type ScheduledEvent    = Database['public']['Tables']['scheduled_events']['Row']
+export type CategoryRow       = Database['public']['Tables']['categories']['Row']
 
 // Application-level string literal types (values used in code)
 export type AccountType      = 'BANK' | 'WALLET'

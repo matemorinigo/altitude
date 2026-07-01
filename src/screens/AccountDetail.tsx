@@ -443,7 +443,7 @@ export function AccountDetail({ account, cycleFrom, accounts, onBack, onTransfer
 
       {/* Rectify modal */}
       {showRectify && (
-        <RectifyModal account={account} onClose={() => setShowRectify(false)} />
+        <RectifyModal target="account" account={account} onClose={() => setShowRectify(false)} />
       )}
     </div>
   )

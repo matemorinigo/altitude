@@ -108,6 +108,7 @@ export interface RectifyPayload {
   credit_card_id?: string | null
   amount: number           // signed delta: real − system
   currency: string
+  debt_target?: 'current' | 'statement'
   description?: string
 }
 
@@ -125,6 +126,7 @@ export function useRectifyAccount() {
         account_id:     payload.account_id ?? null,
         credit_card_id: payload.credit_card_id ?? null,
         currency:       payload.currency,
+        debt_target:    payload.debt_target ?? null,
       }).select('id').single()
       if (error) throw error
       return data as { id: string }

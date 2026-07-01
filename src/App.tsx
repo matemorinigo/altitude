@@ -13,6 +13,7 @@ import { Login } from './screens/Login'
 import { Dashboard } from './screens/Dashboard'
 import { Hangar } from './screens/Hangar'
 import { Ledger } from './screens/Ledger'
+import { Analytics } from './screens/Analytics'
 import { System } from './screens/System'
 import './styles/index'
 
@@ -22,6 +23,7 @@ const SCREEN_TITLE: Record<TabId, string> = {
   dash:   'DASHBOARD',
   hangar: 'HANGAR',
   log:    'LEDGER',
+  anly:   'ANALYTICS',
   sys:    'SYSTEM',
 }
 
@@ -29,11 +31,12 @@ const SCREEN_SUBTITLE: Record<TabId, string> = {
   dash:   'PRIMARY VIEW · DAILY OPS',
   hangar: 'ASSETS · INVENTORY',
   log:    'TRANSACTION HISTORY',
+  anly:   'EXPENSE ANALYSIS',
   sys:    'SYSTEM CONFIGURATION',
 }
 
 const SCREEN_NUM: Record<TabId, string> = {
-  dash: '01', hangar: '02', log: '03', sys: '04',
+  dash: '01', hangar: '02', log: '03', anly: '04', sys: '05',
 }
 
 function Shell() {
@@ -71,7 +74,7 @@ function Shell() {
                   </span>
                 </div>
                 <div style={{ display: 'flex', gap: 14, fontSize: 10, letterSpacing: '0.18em', color: 'var(--ink-4)' }}>
-                  <span>SCREEN {SCREEN_NUM[tab]}/04</span>
+                  <span>SCREEN {SCREEN_NUM[tab]}/05</span>
                   <span>●</span>
                   <span>RECORDING</span>
                 </div>
@@ -81,6 +84,7 @@ function Shell() {
                 {tab === 'dash'   && <Dashboard />}
                 {tab === 'hangar' && <Hangar />}
                 {tab === 'log'    && <Ledger />}
+                {tab === 'anly'   && <Analytics />}
                 {tab === 'sys'    && <System />}
               </div>
             </div>

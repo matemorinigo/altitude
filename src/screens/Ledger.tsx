@@ -4,7 +4,7 @@ import { TxRow } from '../components/rows/TxRow'
 import { TelemetryBar } from '../components/primitives/TelemetryBar'
 import { useAllTransactions, type LedgerFilters } from '../hooks/useTransactions'
 import { useIsDesktop } from '../hooks/useIsDesktop'
-import { CATEGORIES } from '../lib/categories'
+import { useCategories } from '../hooks/useCategories'
 import { fmt } from '../lib/format'
 
 type KindFilter = 'ALL' | 'EXPENSE' | 'INCOME' | 'CARD_PAYMENT' | 'RECTIFICATION'
@@ -23,6 +23,7 @@ export function Ledger() {
   const [catFilter,  setCatFilter]          = useState<string>('ALL')
   const [currencyFilter, setCurrencyFilter] = useState<CurrencyFilter>('ARS')
   const isDesktop                           = useIsDesktop()
+  const { data: allCategories = [] }        = useCategories()
 
   const filters: LedgerFilters = {
     kind:                  kindFilter === 'ALL' ? 'ALL' : kindFilter,
@@ -79,7 +80,7 @@ export function Ledger() {
         <div style={{ fontFamily: 'var(--mono)', fontSize: 9.5, letterSpacing: '0.18em', color: 'var(--ink-4)', margin: '14px 0 8px' }}>CATEGORY</div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <div className={`chip ${catFilter === 'ALL' ? 'on' : ''}`} onClick={() => setCatFilter('ALL')}>ALL</div>
-          {CATEGORIES.map(c => (
+          {allCategories.filter(c => !c.is_system).map(c => (
             <div key={c.code} className={`chip ${catFilter === c.code ? 'on' : ''}`} onClick={() => setCatFilter(c.code)}>
               {c.label}
             </div>
@@ -187,7 +188,7 @@ export function Ledger() {
       <SectionLabel right="CAT">FILTRO · CATEGORÍA</SectionLabel>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         <div className={`chip ${catFilter === 'ALL' ? 'on' : ''}`} onClick={() => setCatFilter('ALL')}>ALL</div>
-        {CATEGORIES.map(c => (
+        {allCategories.filter(c => !c.is_system).map(c => (
           <div key={c.code} className={`chip ${catFilter === c.code ? 'on' : ''}`} onClick={() => setCatFilter(c.code)}>
             {c.label}
           </div>

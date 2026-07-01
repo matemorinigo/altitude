@@ -1,9 +1,10 @@
-export type TabId = 'dash' | 'hangar' | 'log' | 'sys'
+export type TabId = 'dash' | 'hangar' | 'log' | 'anly' | 'sys'
 
 const TABS: { id: TabId; label: string; ic: string }[] = [
   { id: 'dash',   label: 'DASH',   ic: '⌖' },
   { id: 'hangar', label: 'HANGAR', ic: '▤' },
   { id: 'log',    label: 'LOG',    ic: '≡' },
+  { id: 'anly',   label: 'ANLY',   ic: '▦' },
   { id: 'sys',    label: 'SYS',    ic: '⚙' },
 ]
 

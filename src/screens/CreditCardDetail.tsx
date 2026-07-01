@@ -1,6 +1,7 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { TxRow } from '../components/rows/TxRow'
 import { TelemetryBar } from '../components/primitives/TelemetryBar'
+import { RectifyModal } from '../components/modals/RectifyModal'
 import { useCreditCardTransactions } from '../hooks/useCreditCards'
 import { useProfile } from '../hooks/useProfile'
 import { fmt } from '../lib/format'
@@ -14,6 +15,7 @@ interface Props {
 export function CreditCardDetail({ card, onBack }: Props) {
   const { data: txs = [], isLoading } = useCreditCardTransactions(card.id)
   const { data: profile } = useProfile()
+  const [showRectify, setShowRectify] = useState(false)
 
   const usdRate    = profile?.usd_rate ?? 1000
   const totalArs   = (card.current_debt_ars ?? 0) + (card.statement_debt_ars ?? 0)
@@ -252,8 +254,26 @@ export function CreditCardDetail({ card, onBack }: Props) {
         )}
       </div>
 
+      {/* Rectify CTA */}
+      <div style={{ padding: '14px 14px 0' }}>
+        <button
+          className="btn-trigger"
+          onClick={() => setShowRectify(true)}
+          style={{ padding: '14px 18px', borderColor: 'var(--amb)' }}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{
+              width: 22, height: 22, border: '1px solid var(--amb)',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              fontFamily: 'var(--mono)', fontSize: 11,
+            }}>◆</span>
+            <span style={{ fontSize: 13, letterSpacing: '0.22em', color: 'var(--amb)' }}>RECTIFICAR ›</span>
+          </span>
+        </button>
+      </div>
+
       {/* Card data */}
-      <div style={{ padding: '0 14px', borderTop: '1px solid var(--line-2)', marginTop: 4 }}>
+      <div style={{ padding: '0 14px', borderTop: '1px solid var(--line-2)', marginTop: 14 }}>
         <div style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.18em', color: 'var(--ink-4)', padding: '12px 0 8px' }}>
           ◆ DATOS DE TARJETA
         </div>
@@ -271,6 +291,11 @@ export function CreditCardDetail({ card, onBack }: Props) {
           </div>
         ))}
       </div>
+
+      {/* Rectify modal */}
+      {showRectify && (
+        <RectifyModal target="card" card={card} onClose={() => setShowRectify(false)} />
+      )}
     </div>
   )
 }
