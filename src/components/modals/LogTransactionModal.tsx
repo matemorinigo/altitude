@@ -436,7 +436,7 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess, editT
               onClick={handleDelete}
               disabled={deleteTx.isPending || isLockedByClose}
               style={{
-                padding: '16px 14px', flex: confirmDelete ? 1 : '0 0 auto',
+                padding: '16px 14px', flex: confirmDelete ? 1 : '0 0 auto', width: 'auto',
                 borderColor: 'var(--red)', color: 'var(--red)',
                 opacity: (deleteTx.isPending || isLockedByClose) ? 0.4 : 1,
               }}
