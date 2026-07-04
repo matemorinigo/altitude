@@ -164,3 +164,56 @@ export function useAddTransaction() {
     },
   })
 }
+
+export interface UpdateTransactionPayload {
+  id: string
+  kind: TransactionKind
+  amount: number
+  category: string
+  description?: string | null
+  account_id?: string | null
+  credit_card_id?: string | null
+  currency?: string
+  occurred_at?: string
+}
+
+export function useUpdateTransaction() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (payload: UpdateTransactionPayload): Promise<{ id: string }> => {
+      const { id, ...rest } = payload
+      const { data, error } = await supabase.from('transactions').update({
+        kind: rest.kind,
+        amount: rest.amount,
+        category: rest.category,
+        description: rest.description ?? null,
+        account_id: rest.account_id ?? null,
+        credit_card_id: rest.credit_card_id ?? null,
+        currency: rest.currency ?? 'ARS',
+        ...(rest.occurred_at ? { occurred_at: rest.occurred_at } : {}),
+      }).eq('id', id).select('id').single()
+      if (error) throw error
+      return data as { id: string }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK })
+      qc.invalidateQueries({ queryKey: ['accounts'] })
+      qc.invalidateQueries({ queryKey: ['credit_cards'] })
+    },
+  })
+}
+
+export function useDeleteTransaction() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string): Promise<void> => {
+      const { error } = await supabase.from('transactions').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK })
+      qc.invalidateQueries({ queryKey: ['accounts'] })
+      qc.invalidateQueries({ queryKey: ['credit_cards'] })
+    },
+  })
+}

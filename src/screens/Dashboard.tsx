@@ -17,7 +17,7 @@ import { AccountDetail } from './AccountDetail'
 import { CreditCardDetail } from './CreditCardDetail'
 import { useAccounts } from '../hooks/useAccounts'
 import { useCreditCards } from '../hooks/useCreditCards'
-import { useRecentTransactions, useCycleTransactions } from '../hooks/useTransactions'
+import { useRecentTransactions, useCycleTransactions, type TransactionWithRefs } from '../hooks/useTransactions'
 import { usePendingEvents, useLastConfirmedPayday } from '../hooks/useScheduledEvents'
 import { useProfile } from '../hooks/useProfile'
 import { useIsDesktop } from '../hooks/useIsDesktop'
@@ -35,6 +35,7 @@ export function Dashboard() {
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null)
   const [selectedCard, setSelectedCard]       = useState<CreditCard | null>(null)
   const [transferFrom, setTransferFrom]     = useState<Account | null>(null)
+  const [editTx, setEditTx]                 = useState<TransactionWithRefs | null>(null)
   const isDesktop                       = useIsDesktop()
   const qc                              = useQueryClient()
 
@@ -129,6 +130,14 @@ export function Dashboard() {
           onClose={() => setTransferFrom(null)}
         />
       )}
+      {editTx && (
+        <LogTransactionModal
+          accounts={accounts}
+          cards={cards}
+          editTx={editTx}
+          onClose={() => setEditTx(null)}
+        />
+      )}
     </>
   )
 
@@ -218,6 +227,7 @@ export function Dashboard() {
             acctCode={t.accounts?.code ?? t.credit_cards?.code}
             isCard={!!t.credit_cards?.code}
             last={i === txs.length - 1}
+            onClick={() => setEditTx(t)}
           />
         ))}
       </div>

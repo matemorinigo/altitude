@@ -2,7 +2,10 @@ import { useState } from 'react'
 import { SectionLabel } from '../components/shell/SectionLabel'
 import { TxRow } from '../components/rows/TxRow'
 import { TelemetryBar } from '../components/primitives/TelemetryBar'
-import { useAllTransactions, type LedgerFilters } from '../hooks/useTransactions'
+import { LogTransactionModal } from '../components/modals/LogTransactionModal'
+import { useAllTransactions, type LedgerFilters, type TransactionWithRefs } from '../hooks/useTransactions'
+import { useAccounts } from '../hooks/useAccounts'
+import { useCreditCards } from '../hooks/useCreditCards'
 import { useIsDesktop } from '../hooks/useIsDesktop'
 import { useCategories } from '../hooks/useCategories'
 import { fmt } from '../lib/format'
@@ -23,8 +26,11 @@ export function Ledger() {
   const [kindFilter, setKindFilter]         = useState<KindFilter>('ALL')
   const [catFilter,  setCatFilter]          = useState<string>('ALL')
   const [currencyFilter, setCurrencyFilter] = useState<CurrencyFilter>('ARS')
+  const [editTx, setEditTx]                 = useState<TransactionWithRefs | null>(null)
   const isDesktop                           = useIsDesktop()
   const { data: allCategories = [] }        = useCategories()
+  const { data: accounts = [] }              = useAccounts()
+  const { data: cards = [] }                 = useCreditCards()
 
   const filters: LedgerFilters = {
     kind:                  kindFilter === 'ALL' ? 'ALL' : kindFilter,
@@ -145,6 +151,7 @@ export function Ledger() {
               acctCode={t.accounts?.code ?? t.credit_cards?.code}
               isCard={!!t.credit_cards?.code}
               last={i === txs.length - 1}
+              onClick={() => setEditTx(t)}
             />
           ))}
         </div>
@@ -152,28 +159,42 @@ export function Ledger() {
     </>
   )
 
+  const editModal = editTx && (
+    <LogTransactionModal
+      accounts={accounts}
+      cards={cards}
+      editTx={editTx}
+      onClose={() => setEditTx(null)}
+    />
+  )
+
   if (isDesktop) {
     return (
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 14, padding: 14, alignItems: 'start' }}>
-        <div>
-          <div style={{
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            padding: '10px 0 8px', fontFamily: 'var(--mono)', fontSize: 10,
-            letterSpacing: '0.18em', color: 'var(--ink-3)', borderBottom: '1px solid var(--line)', marginBottom: 10,
-          }}>
-            <span>◆ LEDGER · {currencyFilter} · ENTRADAS</span>
-            <span>{txs.length} ENTRIES</span>
+      <>
+        {editModal}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 14, padding: 14, alignItems: 'start' }}>
+          <div>
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '10px 0 8px', fontFamily: 'var(--mono)', fontSize: 10,
+              letterSpacing: '0.18em', color: 'var(--ink-3)', borderBottom: '1px solid var(--line)', marginBottom: 10,
+            }}>
+              <span>◆ LEDGER · {currencyFilter} · ENTRADAS</span>
+              <span>{txs.length} ENTRIES</span>
+            </div>
+            {txList}
           </div>
-          {txList}
+          {filterPanel}
         </div>
-        {filterPanel}
-      </div>
+      </>
     )
   }
 
   // Mobile layout
   return (
-    <div className="scroll" style={{ padding: '0 14px 20px' }}>
+    <>
+      {editModal}
+      <div className="scroll" style={{ padding: '0 14px 20px' }}>
       <SectionLabel right="FX">MONEDA</SectionLabel>
       {currencyChips}
 
@@ -218,6 +239,7 @@ export function Ledger() {
       <SectionLabel right={currencyFilter}>LEDGER · REGISTRO</SectionLabel>
       {txList}
       <div style={{ height: 24 }} />
-    </div>
+      </div>
+    </>
   )
 }

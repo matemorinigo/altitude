@@ -14,7 +14,7 @@ function escCsv(v: string | number | null | undefined): string {
   return s
 }
 
-export function exportLedgerCsv(txs: TxWithRefs[]) {
+export function exportLedgerCsv(txs: TxWithRefs[], filename?: string) {
   const headers = ['DATE', 'TIME', 'KIND', 'CATEGORY', 'DESCRIPTION', 'AMOUNT', 'CURRENCY', 'ACCOUNT', 'CARD']
   const rows = txs.map(t => {
     const d = new Date(t.occurred_at)
@@ -39,7 +39,7 @@ export function exportLedgerCsv(txs: TxWithRefs[]) {
   const url  = URL.createObjectURL(blob)
   const a    = document.createElement('a')
   a.href     = url
-  a.download = `altitude-ledger-${new Date().toISOString().slice(0,10)}.csv`
+  a.download = filename ?? `altitude-ledger-${new Date().toISOString().slice(0,10)}.csv`
   a.click()
   URL.revokeObjectURL(url)
 }

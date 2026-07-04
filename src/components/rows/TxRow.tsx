@@ -6,9 +6,10 @@ interface TxRowProps {
   acctCode?: string
   isCard?: boolean
   last?: boolean
+  onClick?: () => void
 }
 
-export function TxRow({ tx, acctCode, isCard, last }: TxRowProps) {
+export function TxRow({ tx, acctCode, isCard, last, onClick }: TxRowProps) {
   const isIncome = tx.kind === 'INCOME'
   const isRect   = tx.kind === 'RECTIFICATION'
   const signedAmt = isRect ? tx.amount : Math.abs(tx.amount)
@@ -16,14 +17,19 @@ export function TxRow({ tx, acctCode, isCard, last }: TxRowProps) {
   const d = new Date(tx.occurred_at)
   const date = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`
   const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  const clickable = !!onClick && !isRect
 
   return (
-    <div style={{
-      display: 'grid', gridTemplateColumns: '50px 1fr 90px',
-      alignItems: 'center', padding: '8px 0',
-      borderBottom: last ? 0 : '1px solid var(--line)',
-      fontFamily: 'var(--mono)',
-    }}>
+    <div
+      onClick={clickable ? onClick : undefined}
+      style={{
+        display: 'grid', gridTemplateColumns: '50px 1fr 90px',
+        alignItems: 'center', padding: '8px 0',
+        borderBottom: last ? 0 : '1px solid var(--line)',
+        fontFamily: 'var(--mono)',
+        cursor: clickable ? 'pointer' : 'default',
+      }}
+    >
       <span style={{ fontSize: 10, color: 'var(--ink-4)', letterSpacing: '0.04em' }}>
         {date}<br /><span style={{ color: 'var(--ink-3)' }}>{time}</span>
       </span>

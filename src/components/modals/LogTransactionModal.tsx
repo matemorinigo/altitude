@@ -1,40 +1,73 @@
 import { useState } from 'react'
 import { SectionLabel } from '../shell/SectionLabel'
 import { useCategories } from '../../hooks/useCategories'
-import { useAddTransaction } from '../../hooks/useTransactions'
+import { useAddTransaction, useUpdateTransaction, useDeleteTransaction, type TransactionWithRefs } from '../../hooks/useTransactions'
 import { useToast } from '../../context/ToastContext'
 import { fmt } from '../../lib/format'
-import type { Account, CreditCard } from '../../types/db'
+import type { Account, CreditCard, TransactionKind } from '../../types/db'
 
 interface Props {
   accounts: Account[]
   cards: CreditCard[]
   onClose: () => void
   onSuccess?: () => void
+  editTx?: TransactionWithRefs | null
 }
 
 type Direction = 'OUT' | 'IN' | 'PAY'
 type Currency  = 'ARS' | 'USD'
 
-export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Props) {
-  const [amount, setAmount]       = useState('0')
-  const [cat, setCat]             = useState('FOOD')
-  const [direction, setDirection] = useState<Direction>('OUT')
-  const [selectedAcct, setAcct]   = useState<string>(accounts[0]?.id ?? '')
-  const [selectedCard, setCard]   = useState<string | null>(null)
-  const [currency, setCurrency]   = useState<Currency>('ARS')
-  const [desc, setDesc]           = useState('')
-  const [err, setErr]             = useState('')
+function toLocalDateInput(iso: string): string {
+  const d = new Date(iso)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
 
-  const addTx = useAddTransaction()
+function withDate(original: string, dateStr: string): string {
+  const d = new Date(original)
+  const [y, m, day] = dateStr.split('-').map(Number)
+  d.setFullYear(y, m - 1, day)
+  return d.toISOString()
+}
+
+export function LogTransactionModal({ accounts, cards, onClose, onSuccess, editTx = null }: Props) {
+  const isEditing = !!editTx
+
+  const [amount, setAmount]       = useState(editTx ? String(editTx.amount) : '0')
+  const [cat, setCat]             = useState(editTx ? editTx.category : 'FOOD')
+  const [direction, setDirection] = useState<Direction>(
+    editTx ? (editTx.kind === 'INCOME' ? 'IN' : editTx.kind === 'CARD_PAYMENT' ? 'PAY' : 'OUT') : 'OUT'
+  )
+  const [selectedAcct, setAcct]   = useState<string>(editTx ? (editTx.account_id ?? '') : (accounts[0]?.id ?? ''))
+  const [selectedCard, setCard]   = useState<string | null>(editTx ? (editTx.credit_card_id ?? null) : null)
+  const [currency, setCurrency]   = useState<Currency>((editTx?.currency as Currency) ?? 'ARS')
+  const [desc, setDesc]           = useState(editTx ? (editTx.description ?? '') : '')
+  const [occurredAt, setOccurredAt] = useState(editTx ? toLocalDateInput(editTx.occurred_at) : '')
+  const [err, setErr]             = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  const addTx    = useAddTransaction()
+  const updateTx = useUpdateTransaction()
+  const deleteTx = useDeleteTransaction()
   const toast = useToast()
   const { data: allCategories = [] } = useCategories()
+
+  const editCard = editTx?.credit_card_id ? cards.find(c => c.id === editTx.credit_card_id) : null
+  const isLockedByClose = !!(
+    editTx &&
+    editTx.kind === 'EXPENSE' &&
+    editCard?.last_closed_at &&
+    new Date(editTx.occurred_at) <= new Date(editCard.last_closed_at)
+  )
 
   const expenseCats = allCategories.filter(c => c.kind === 'EXPENSE' && !c.is_system).map(c => c.code)
   const incomeCats  = allCategories.filter(c => c.kind === 'INCOME' && !c.is_system).map(c => c.code)
   const cats        = direction === 'OUT' ? expenseCats : direction === 'IN' ? incomeCats : []
 
   const tap = (k: string) => {
+    if (isLockedByClose) return
     if (k === 'DEL') { setAmount(a => a.length <= 1 ? '0' : a.slice(0, -1)); return }
     if (k === '.' && amount.includes('.')) return
     if (amount === '0' && k !== '.') { setAmount(k); return }
@@ -43,6 +76,7 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Pro
   }
 
   const switchDir = (d: Direction) => {
+    if (isEditing) return
     setDirection(d)
     setCard(null)
     setCurrency('ARS')
@@ -58,15 +92,23 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Pro
     if (debt > 0) setAmount(String(debt))
   }
 
+  const handleAcctSelect = (acctId: string) => {
+    if (isLockedByClose) return
+    setAcct(acctId)
+    if (direction !== 'PAY') setCard(null)
+  }
+
   const handleCardSelect = (cardId: string) => {
+    if (isLockedByClose) return
     setCard(cardId)
     if (direction === 'OUT') setAcct('')
-    if (direction === 'PAY') autoFillFromCard(cardId, currency)
+    if (direction === 'PAY' && !isEditing) autoFillFromCard(cardId, currency)
   }
 
   const handleCurrencySwitch = (cur: Currency) => {
+    if (isLockedByClose) return
     setCurrency(cur)
-    if (direction === 'PAY' && selectedCard) autoFillFromCard(selectedCard, cur)
+    if (direction === 'PAY' && selectedCard && !isEditing) autoFillFromCard(selectedCard, cur)
   }
 
   const handleCommit = async () => {
@@ -84,7 +126,30 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Pro
 
     setErr('')
     try {
-      if (direction === 'PAY') {
+      const kind: TransactionKind = direction === 'PAY' ? 'CARD_PAYMENT' : direction === 'OUT' ? 'EXPENSE' : 'INCOME'
+      const category = direction === 'PAY' ? 'CARD_PAYMENT' : cat
+      const account_id = direction === 'PAY'
+        ? selectedAcct
+        : (direction === 'OUT' && selectedCard ? null : (selectedAcct || null))
+      const credit_card_id = direction === 'PAY'
+        ? selectedCard!
+        : (direction === 'OUT' && selectedCard ? selectedCard : null)
+      const txCurrency = (direction === 'OUT' && selectedCard) || direction === 'PAY' ? currency : 'ARS'
+
+      if (isEditing && editTx) {
+        await updateTx.mutateAsync({
+          id:             editTx.id,
+          kind,
+          amount:         num,
+          currency:       txCurrency,
+          category,
+          description:    desc.trim() || null,
+          account_id,
+          credit_card_id,
+          occurred_at:    withDate(editTx.occurred_at, occurredAt),
+        })
+        toast('TX · ENTRADA ACTUALIZADA', 'var(--grn)')
+      } else if (direction === 'PAY') {
         await addTx.mutateAsync({
           kind:           'CARD_PAYMENT',
           amount:         num,
@@ -107,6 +172,20 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Pro
         })
         toast(direction === 'OUT' ? 'TX · DEBIT COMMITTED' : 'TX · CREDIT COMMITTED', direction === 'OUT' ? 'var(--amb)' : 'var(--grn)')
       }
+      onSuccess?.()
+      onClose()
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : 'ERROR')
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!editTx) return
+    if (!confirmDelete) { setConfirmDelete(true); return }
+    setErr('')
+    try {
+      await deleteTx.mutateAsync(editTx.id)
+      toast('TX · ENTRADA ELIMINADA', 'var(--red)')
       onSuccess?.()
       onClose()
     } catch (e: unknown) {
@@ -150,19 +229,19 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Pro
         background: 'rgba(0,255,65,0.04)',
         flexShrink: 0,
       }}>
-        <span>◆ LOG · NUEVA ENTRADA <span className="blink">_</span></span>
+        <span>{isEditing ? '◆ EDITAR ENTRADA' : '◆ LOG · NUEVA ENTRADA'} <span className="blink">_</span></span>
         <span onClick={onClose} style={{ cursor: 'pointer', color: 'var(--amb)' }}>ESC ✕</span>
       </div>
 
       {/* Scrollable zone */}
       <div className="scroll" style={{ padding: '0 14px', flex: 1 }}>
         {/* Direction toggle */}
-        <div style={{ display: 'flex', gap: 0, marginTop: 14, border: '1px solid var(--line-2)' }}>
+        <div style={{ display: 'flex', gap: 0, marginTop: 14, border: '1px solid var(--line-2)', opacity: isEditing ? 0.6 : 1 }}>
           {modeOptions.map((o, i) => (
             <div key={o.id} onClick={() => switchDir(o.id)} style={{
               flex: 1, padding: '12px 0', textAlign: 'center',
               fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em',
-              cursor: 'pointer',
+              cursor: isEditing ? 'default' : 'pointer',
               background: direction === o.id
                 ? (o.id === 'IN' ? 'rgba(0,255,65,0.08)' : 'rgba(255,176,0,0.08)')
                 : 'transparent',
@@ -186,12 +265,12 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Pro
 
         {/* Account selector */}
         <SectionLabel right="ACCT">{direction === 'PAY' ? 'DÉBITAR DE' : 'CUENTA'}</SectionLabel>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', opacity: isLockedByClose ? 0.5 : 1 }}>
           {accounts.map(a => (
             <div
               key={a.id}
               className={`chip ${selectedAcct === a.id && (direction === 'PAY' || !selectedCard) ? 'on' : ''}`}
-              onClick={() => { setAcct(a.id); if (direction !== 'PAY') setCard(null) }}
+              onClick={() => handleAcctSelect(a.id)}
             >
               {a.code} <span style={{ color: 'var(--ink-4)' }}>· {a.name}</span>
             </div>
@@ -202,7 +281,7 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Pro
         {(direction === 'OUT' || direction === 'PAY') && cards.length > 0 && (
           <>
             <SectionLabel right="CARD">{direction === 'PAY' ? 'TARJETA A PAGAR' : 'TARJETA'}</SectionLabel>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', opacity: isLockedByClose ? 0.5 : 1 }}>
               {cards.map(c => (
                 <div
                   key={c.id}
@@ -213,6 +292,16 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Pro
                 </div>
               ))}
             </div>
+
+            {isLockedByClose && (
+              <div style={{
+                marginTop: 8, padding: '6px 10px',
+                border: '1px solid var(--amb)', color: 'var(--amb)',
+                fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.1em',
+              }}>
+                ⚠ RESUMEN YA CERRADO · MONTO/MONEDA/TARJETA BLOQUEADOS
+              </div>
+            )}
 
             {/* PAY mode: show per-currency statement debt */}
             {direction === 'PAY' && selectedCardData && (
@@ -243,7 +332,7 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Pro
         {showCurrencyToggle && (
           <>
             <SectionLabel right="MONEDA">MONEDA DE CARGO</SectionLabel>
-            <div style={{ display: 'flex', border: '1px solid var(--line-2)' }}>
+            <div style={{ display: 'flex', border: '1px solid var(--line-2)', opacity: isLockedByClose ? 0.5 : 1 }}>
               {(['ARS', 'USD'] as Currency[]).map((cur, i) => (
                 <div
                   key={cur}
@@ -278,6 +367,25 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Pro
             outline: 'none',
           }}
         />
+
+        {/* Date — edit mode only */}
+        {isEditing && (
+          <>
+            <SectionLabel right="FECHA">FECHA</SectionLabel>
+            <input
+              type="date"
+              value={occurredAt}
+              onChange={e => setOccurredAt(e.target.value)}
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                background: '#050505', border: '1px solid var(--line-2)',
+                color: 'var(--ink)', fontFamily: 'var(--mono)', fontSize: 12,
+                letterSpacing: '0.04em', padding: '10px 12px',
+                outline: 'none',
+              }}
+            />
+          </>
+        )}
         <div style={{ height: 14 }} />
       </div>
 
@@ -312,7 +420,7 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Pro
         </div>
 
         {/* Keypad */}
-        <div className="keypad">
+        <div className="keypad" style={{ opacity: isLockedByClose ? 0.4 : 1, pointerEvents: isLockedByClose ? 'none' : 'auto' }}>
           {['1','2','3','4','5','6','7','8','9','.','0','DEL'].map(k => (
             <div key={k} className={`key ${k === 'DEL' ? 'act' : ''}`} onClick={() => tap(k)}>
               {k === 'DEL' ? '⌫' : k}
@@ -321,12 +429,28 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Pro
         </div>
 
         {/* Commit */}
-        <div style={{ padding: '10px 14px 10px' }}>
+        <div style={{ padding: '10px 14px 10px', display: 'flex', gap: 8 }}>
+          {isEditing && (
+            <button
+              className="btn-trigger"
+              onClick={handleDelete}
+              disabled={deleteTx.isPending || isLockedByClose}
+              style={{
+                padding: '16px 14px', flex: confirmDelete ? 1 : '0 0 auto',
+                borderColor: 'var(--red)', color: 'var(--red)',
+                opacity: (deleteTx.isPending || isLockedByClose) ? 0.4 : 1,
+              }}
+            >
+              <span style={{ fontSize: 13, letterSpacing: '0.2em' }}>
+                {deleteTx.isPending ? 'BORRANDO...' : confirmDelete ? 'CONFIRMAR BORRADO' : 'BORRAR'}
+              </span>
+            </button>
+          )}
           <button
             className="btn-trigger"
             onClick={handleCommit}
-            disabled={addTx.isPending}
-            style={{ padding: '16px 18px', opacity: addTx.isPending ? 0.6 : 1 }}
+            disabled={addTx.isPending || updateTx.isPending}
+            style={{ padding: '16px 18px', flex: 1, opacity: (addTx.isPending || updateTx.isPending) ? 0.6 : 1 }}
           >
             <span style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
               <span style={{
@@ -335,7 +459,7 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess }: Pro
                 fontFamily: 'var(--mono)', fontSize: 12,
               }}>▶</span>
               <span style={{ fontSize: 13, letterSpacing: '0.24em' }}>
-                {addTx.isPending ? 'SAVING...' : 'COMMIT · ENTER'}
+                {(addTx.isPending || updateTx.isPending) ? 'SAVING...' : isEditing ? 'GUARDAR · ENTER' : 'COMMIT · ENTER'}
               </span>
             </span>
             <span className="num" style={{ fontSize: 10, letterSpacing: '0.16em', color: 'var(--ink-3)' }}>

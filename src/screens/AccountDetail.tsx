@@ -2,9 +2,11 @@ import { useMemo, useState } from 'react'
 import { TxRow } from '../components/rows/TxRow'
 import { TelemetryBar } from '../components/primitives/TelemetryBar'
 import { RectifyModal } from '../components/modals/RectifyModal'
-import { useAccountTransactions } from '../hooks/useTransactions'
+import { LogTransactionModal } from '../components/modals/LogTransactionModal'
+import { useAccountTransactions, type TransactionWithRefs } from '../hooks/useTransactions'
+import { useCreditCards } from '../hooks/useCreditCards'
 import { fmt } from '../lib/format'
-import { isSpendTx, isIncomeTx } from '../lib/transactions'
+import { isSpendTx, isCashOutTx, isIncomeTx } from '../lib/transactions'
 import type { Account } from '../types/db'
 
 interface Props {
@@ -59,7 +61,9 @@ function Sparkline({ values, color = 'var(--grn)', dimColor = 'var(--grn-dim)' }
 export function AccountDetail({ account, cycleFrom, accounts, onBack, onTransfer }: Props) {
   const [filter, setFilter]       = useState<TxFilter>('ALL')
   const [showRectify, setShowRectify] = useState(false)
+  const [editTx, setEditTx]       = useState<TransactionWithRefs | null>(null)
   const { data: txs = [], isLoading } = useAccountTransactions(account.id)
+  const { data: cards = [] }          = useCreditCards()
 
   const isPositive = account.currency === 'ARS'
     ? true
@@ -76,7 +80,7 @@ export function AccountDetail({ account, cycleFrom, accounts, onBack, onTransfer
     [regularTxs, cycleFrom]
   )
   const cycleIn  = cycleTxs.filter(isIncomeTx).reduce((s, t) => s + t.amount, 0)
-  const cycleOut = cycleTxs.filter(isSpendTx).reduce((s, t) => s + t.amount, 0)
+  const cycleOut = cycleTxs.filter(isCashOutTx).reduce((s, t) => s + t.amount, 0)
   const cycleNet = cycleIn - cycleOut
 
   // 30-day sparkline — reverse-engineer daily balances from current balance + transactions
@@ -96,7 +100,7 @@ export function AccountDetail({ account, cycleFrom, accounts, onBack, onTransfer
       while (txIdx < txsSorted.length && new Date(txsSorted[txIdx].occurred_at) > dayEnd) {
         const t = txsSorted[txIdx]
         if (t.kind === 'INCOME') runningBalance -= t.amount
-        else if (t.kind === 'EXPENSE' || t.kind === 'CARD_PAYMENT') runningBalance += t.amount
+        else if (isCashOutTx(t)) runningBalance += t.amount
         else if (t.kind === 'RECTIFICATION') runningBalance -= t.amount
         txIdx++
       }
@@ -122,7 +126,7 @@ export function AccountDetail({ account, cycleFrom, accounts, onBack, onTransfer
   // Filtered tx list (never includes rectifications — shown separately)
   const filteredTxs = useMemo(() => {
     if (filter === 'IN')  return regularTxs.filter(t => t.kind === 'INCOME')
-    if (filter === 'OUT') return regularTxs.filter(t => t.kind === 'EXPENSE' || t.kind === 'CARD_PAYMENT')
+    if (filter === 'OUT') return regularTxs.filter(isCashOutTx)
     return regularTxs
   }, [regularTxs, filter])
 
@@ -338,6 +342,7 @@ export function AccountDetail({ account, cycleFrom, accounts, onBack, onTransfer
                 acctCode={t.accounts?.code ?? t.credit_cards?.code}
                 isCard={!!t.credit_cards?.code}
                 last={i === filteredTxs.length - 1}
+                onClick={() => setEditTx(t)}
               />
             ))}
           </div>
@@ -445,6 +450,16 @@ export function AccountDetail({ account, cycleFrom, accounts, onBack, onTransfer
       {/* Rectify modal */}
       {showRectify && (
         <RectifyModal target="account" account={account} onClose={() => setShowRectify(false)} />
+      )}
+
+      {/* Edit tx modal */}
+      {editTx && (
+        <LogTransactionModal
+          accounts={accounts}
+          cards={cards}
+          editTx={editTx}
+          onClose={() => setEditTx(null)}
+        />
       )}
     </div>
   )

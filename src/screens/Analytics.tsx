@@ -2,8 +2,12 @@ import { useState, useMemo } from 'react'
 import { SectionLabel } from '../components/shell/SectionLabel'
 import { TxRow } from '../components/rows/TxRow'
 import { TelemetryBar } from '../components/primitives/TelemetryBar'
-import { useMonthlyTransactions } from '../hooks/useAnalytics'
+import { LogTransactionModal } from '../components/modals/LogTransactionModal'
+import { useMonthlyTransactions, type AnalyticsTransaction } from '../hooks/useAnalytics'
 import { useCategories } from '../hooks/useCategories'
+import { useAccounts } from '../hooks/useAccounts'
+import { useCreditCards } from '../hooks/useCreditCards'
+import { exportLedgerCsv } from '../lib/export'
 import { fmt } from '../lib/format'
 import { isSpendTx, isIncomeTx } from '../lib/transactions'
 
@@ -16,9 +20,12 @@ export function Analytics() {
   const [year, setYear]   = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
   const [currency, setCurrency] = useState<Currency>('ARS')
+  const [editTx, setEditTx] = useState<AnalyticsTransaction | null>(null)
 
   const { data: txs = [], isLoading } = useMonthlyTransactions(year, month)
   const { data: categories = [] } = useCategories()
+  const { data: accounts = [] } = useAccounts()
+  const { data: cards = [] } = useCreditCards()
 
   const filtered = useMemo(() => txs.filter(t => t.currency === currency), [txs, currency])
 
@@ -155,6 +162,20 @@ export function Analytics() {
               }}
             >{c}</div>
           ))}
+        </div>
+      </div>
+
+      {/* Export */}
+      <div style={{ padding: '8px 14px 0', display: 'flex', justifyContent: 'flex-end' }}>
+        <div
+          className="chip"
+          onClick={() => filtered.length > 0 && exportLedgerCsv(
+            filtered,
+            `altitude-${year}-${String(month + 1).padStart(2, '0')}-${currency}.csv`
+          )}
+          style={{ cursor: filtered.length > 0 ? 'pointer' : 'default', opacity: filtered.length > 0 ? 1 : 0.4 }}
+        >
+          ⤓ EXPORT CSV · {MONTH_LABELS[month]}
         </div>
       </div>
 
@@ -298,6 +319,7 @@ export function Analytics() {
                       acctCode={t.accounts?.code ?? t.credit_cards?.code}
                       isCard={!!t.credit_cards?.code}
                       last={i === dayTxs.length - 1}
+                      onClick={() => setEditTx(t)}
                     />
                   ))}
                 </div>
@@ -320,6 +342,7 @@ export function Analytics() {
                 acctCode={t.accounts?.code ?? t.credit_cards?.code}
                 isCard={!!t.credit_cards?.code}
                 last={i === topTxs.length - 1}
+                onClick={() => setEditTx(t)}
               />
             ))}
           </div>
@@ -348,6 +371,7 @@ export function Analytics() {
                 acctCode={t.accounts?.code ?? t.credit_cards?.code}
                 isCard={!!t.credit_cards?.code}
                 last={i === visibleExpenses.length - 1}
+                onClick={() => setEditTx(t)}
               />
             ))}
           </div>
@@ -362,6 +386,15 @@ export function Analytics() {
         }}>
           NO HAY DATOS PARA {MONTH_LABELS[month]} {year} · {currency}
         </div>
+      )}
+
+      {editTx && (
+        <LogTransactionModal
+          accounts={accounts}
+          cards={cards}
+          editTx={editTx}
+          onClose={() => setEditTx(null)}
+        />
       )}
     </div>
   )
