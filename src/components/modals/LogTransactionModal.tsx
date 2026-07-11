@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { SectionLabel } from '../shell/SectionLabel'
 import { useCategories } from '../../hooks/useCategories'
 import { useAddTransaction, useUpdateTransaction, useDeleteTransaction, type TransactionWithRefs } from '../../hooks/useTransactions'
+import { useCreateInstallmentPlan } from '../../hooks/useInstallments'
 import { useToast } from '../../context/ToastContext'
 import { fmt } from '../../lib/format'
+import { splitInstallments } from '../../lib/installments'
 import type { Account, CreditCard, TransactionKind } from '../../types/db'
 
 interface Props {
@@ -47,8 +49,11 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess, editT
   const [occurredAt, setOccurredAt] = useState(editTx ? toLocalDateInput(editTx.occurred_at) : '')
   const [err, setErr]             = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [installments, setInstallments] = useState(1)
+  const [customN, setCustomN]     = useState(false)
 
   const addTx    = useAddTransaction()
+  const createPlan = useCreateInstallmentPlan()
   const updateTx = useUpdateTransaction()
   const deleteTx = useDeleteTransaction()
   const toast = useToast()
@@ -81,6 +86,8 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess, editT
     setCard(null)
     setCurrency('ARS')
     setAcct(accounts[0]?.id ?? '')
+    setInstallments(1)
+    setCustomN(false)
     if (d === 'OUT') setCat('FOOD')
     else if (d === 'IN') setCat('SALARY')
   }
@@ -95,7 +102,11 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess, editT
   const handleAcctSelect = (acctId: string) => {
     if (isLockedByClose) return
     setAcct(acctId)
-    if (direction !== 'PAY') setCard(null)
+    if (direction !== 'PAY') {
+      setCard(null)
+      setInstallments(1)
+      setCustomN(false)
+    }
   }
 
   const handleCardSelect = (cardId: string) => {
@@ -160,6 +171,16 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess, editT
           credit_card_id: selectedCard!,
         })
         toast('TX · CARD PAYMENT COMMITTED', 'var(--amb)')
+      } else if (direction === 'OUT' && selectedCard && installments > 1) {
+        await createPlan.mutateAsync({
+          credit_card_id: selectedCard,
+          name:           desc.trim() || cat,
+          category:       cat,
+          total_amount:   num,
+          currency,
+          n_installments: installments,
+        })
+        toast(`PLAN · CUOTA 1/${installments} COMMITTED`, 'var(--amb)')
       } else {
         await addTx.mutateAsync({
           kind:           direction === 'OUT' ? 'EXPENSE' : 'INCOME',
@@ -303,6 +324,16 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess, editT
               </div>
             )}
 
+            {isEditing && editTx?.installment_plan_id && (
+              <div style={{
+                marginTop: 8, padding: '6px 10px',
+                border: '1px solid var(--line-2)', color: 'var(--ink-3)',
+                fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.1em',
+              }}>
+                ◆ CUOTA DE PLAN · EDITAR/BORRAR NO AFECTA EL PLAN
+              </div>
+            )}
+
             {/* PAY mode: show per-currency statement debt */}
             {direction === 'PAY' && selectedCardData && (
               <div style={{
@@ -350,6 +381,62 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess, editT
                 </div>
               ))}
             </div>
+          </>
+        )}
+
+        {/* Installments — OUT + card only; keypad amount is the TOTAL */}
+        {direction === 'OUT' && selectedCard && !isEditing && (
+          <>
+            <SectionLabel right="PLAN">CUOTAS</SectionLabel>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+              {[1, 3, 6, 12, 18].map(n => (
+                <div
+                  key={n}
+                  className={`chip amb ${installments === n && !customN ? 'on' : ''}`}
+                  onClick={() => { setInstallments(n); setCustomN(false) }}
+                >
+                  {n === 1 ? '1 · CONTADO' : `${n}`}
+                </div>
+              ))}
+              <div
+                className={`chip amb ${customN ? 'on' : ''}`}
+                onClick={() => { setCustomN(true); setInstallments(i => i > 1 ? i : 2) }}
+              >
+                N
+              </div>
+              {customN && (
+                <input
+                  type="number"
+                  min={2}
+                  max={60}
+                  value={installments}
+                  onChange={e => {
+                    const v = parseInt(e.target.value, 10)
+                    setInstallments(Number.isNaN(v) ? 2 : Math.min(60, Math.max(2, v)))
+                  }}
+                  style={{
+                    width: 56, boxSizing: 'border-box',
+                    background: '#050505', border: '1px solid var(--line-2)',
+                    color: 'var(--amb)', fontFamily: 'var(--mono)', fontSize: 12,
+                    fontVariantNumeric: 'tabular-nums',
+                    padding: '6px 8px', outline: 'none',
+                  }}
+                />
+              )}
+            </div>
+            {installments > 1 && parseFloat(amount) > 0 && (() => {
+              const { base } = splitInstallments(parseFloat(amount), installments)
+              const { intStr, centStr } = fmt(base)
+              return (
+                <div style={{
+                  marginTop: 8, fontFamily: 'var(--mono)', fontSize: 10,
+                  letterSpacing: '0.08em', color: 'var(--ink-3)',
+                  fontVariantNumeric: 'tabular-nums',
+                }}>
+                  ≈ <span style={{ color: 'var(--amb)' }}>−{intStr}.{centStr}</span> {currency} / MES × {installments} · ÚLTIMA CUOTA AJUSTA
+                </div>
+              )
+            })()}
           </>
         )}
 
@@ -449,8 +536,8 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess, editT
           <button
             className="btn-trigger"
             onClick={handleCommit}
-            disabled={addTx.isPending || updateTx.isPending}
-            style={{ padding: '16px 18px', flex: 1, opacity: (addTx.isPending || updateTx.isPending) ? 0.6 : 1 }}
+            disabled={addTx.isPending || updateTx.isPending || createPlan.isPending}
+            style={{ padding: '16px 18px', flex: 1, opacity: (addTx.isPending || updateTx.isPending || createPlan.isPending) ? 0.6 : 1 }}
           >
             <span style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
               <span style={{
@@ -459,7 +546,7 @@ export function LogTransactionModal({ accounts, cards, onClose, onSuccess, editT
                 fontFamily: 'var(--mono)', fontSize: 12,
               }}>▶</span>
               <span style={{ fontSize: 13, letterSpacing: '0.24em' }}>
-                {(addTx.isPending || updateTx.isPending) ? 'SAVING...' : isEditing ? 'GUARDAR · ENTER' : 'COMMIT · ENTER'}
+                {(addTx.isPending || updateTx.isPending || createPlan.isPending) ? 'SAVING...' : isEditing ? 'GUARDAR · ENTER' : 'COMMIT · ENTER'}
               </span>
             </span>
             <span className="num" style={{ fontSize: 10, letterSpacing: '0.16em', color: 'var(--ink-3)' }}>

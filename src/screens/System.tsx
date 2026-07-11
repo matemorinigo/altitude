@@ -6,6 +6,7 @@ import { getToday } from '../lib/time'
 import { useAccounts } from '../hooks/useAccounts'
 import { useCreditCards } from '../hooks/useCreditCards'
 import { useRecurringTemplates } from '../hooks/useRecurring'
+import { useInstallmentPlans } from '../hooks/useInstallments'
 import { useProfile, useUpdateProfile } from '../hooks/useProfile'
 import { useTickers } from '../hooks/useTickers'
 import { useAllTransactions } from '../hooks/useTransactions'
@@ -14,10 +15,11 @@ import { AccountsAdmin } from './settings/AccountsAdmin'
 import { CardsAdmin } from './settings/CardsAdmin'
 import { PaydayAdmin } from './settings/PaydayAdmin'
 import { RecurringAdmin } from './settings/RecurringAdmin'
+import { InstallmentsAdmin } from './settings/InstallmentsAdmin'
 import { TickersAdmin } from './settings/TickersAdmin'
 import { CategoriesAdmin } from './settings/CategoriesAdmin'
 
-type SubScreen = 'accounts' | 'cards' | 'payday' | 'recurring' | 'tickers' | 'categories' | null
+type SubScreen = 'accounts' | 'cards' | 'payday' | 'recurring' | 'installments' | 'tickers' | 'categories' | null
 
 function UsdRatePanel({ rate }: { rate: number }) {
   const [val, setVal]     = useState(String(Math.round(rate)))
@@ -77,6 +79,7 @@ export function System() {
   const { data: accounts  = [] } = useAccounts()
   const { data: cards     = [] } = useCreditCards()
   const { data: templates = [] } = useRecurringTemplates()
+  const { data: plans     = [] } = useInstallmentPlans()
   const { data: tickers   = [] } = useTickers()
   const { data: profile }        = useProfile()
   const { data: allTxs    = [] } = useAllTransactions()
@@ -92,6 +95,7 @@ export function System() {
   if (sub === 'cards')     return <CardsAdmin      onBack={() => setSub(null)} />
   if (sub === 'payday')    return <PaydayAdmin     onBack={() => setSub(null)} />
   if (sub === 'recurring') return <RecurringAdmin  onBack={() => setSub(null)} />
+  if (sub === 'installments') return <InstallmentsAdmin onBack={() => setSub(null)} />
   if (sub === 'tickers')    return <TickersAdmin    onBack={() => setSub(null)} />
   if (sub === 'categories') return <CategoriesAdmin onBack={() => setSub(null)} />
 
@@ -108,6 +112,7 @@ export function System() {
     { label: 'ACCOUNTS',      value: `${accounts.length} OBJ`,                action: () => setSub('accounts') },
     { label: 'CREDIT CARDS',  value: `${cards.length} OBJ`,                   action: () => setSub('cards') },
     { label: 'RECURRING',     value: `${templates.filter(t => t.is_active).length} ACTIVE`, action: () => setSub('recurring') },
+    { label: 'INSTALLMENTS',  value: `${plans.filter(p => p.status === 'ACTIVE').length} ACTIVE`,   action: () => setSub('installments') },
     { label: 'TICKERS',       value: `${tickers.length} HELD`,                             action: () => setSub('tickers') },
     { label: 'CATEGORIES',    value: 'CUSTOM',                                             action: () => setSub('categories') },
     { label: 'EXPORT LEDGER', value: exporting ? 'EXPORTING...' : `CSV · ${allTxs.length} TX`, action: handleExport },

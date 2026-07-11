@@ -163,6 +163,62 @@ export type Database = {
         }
         Relationships: []
       }
+      installment_plans: {
+        Row: {
+          category: string
+          created_at: string
+          credit_card_id: string
+          currency: string
+          first_due_date: string
+          id: string
+          installment_amount: number
+          n_installments: number
+          name: string
+          posted_count: number
+          status: string
+          total_amount: number
+          user_id: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          credit_card_id: string
+          currency?: string
+          first_due_date: string
+          id?: string
+          installment_amount: number
+          n_installments: number
+          name: string
+          posted_count?: number
+          status?: string
+          total_amount: number
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          credit_card_id?: string
+          currency?: string
+          first_due_date?: string
+          id?: string
+          installment_amount?: number
+          n_installments?: number
+          name?: string
+          posted_count?: number
+          status?: string
+          total_amount?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "installment_plans_credit_card_id_fkey"
+            columns: ["credit_card_id"]
+            isOneToOne: false
+            referencedRelation: "credit_cards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           base_currency: string
@@ -381,6 +437,8 @@ export type Database = {
           debt_target: string | null
           description: string | null
           id: string
+          installment_number: number | null
+          installment_plan_id: string | null
           kind: string
           occurred_at: string
           recurring_template_id: string | null
@@ -397,6 +455,8 @@ export type Database = {
           debt_target?: string | null
           description?: string | null
           id?: string
+          installment_number?: number | null
+          installment_plan_id?: string | null
           kind: string
           occurred_at?: string
           recurring_template_id?: string | null
@@ -413,6 +473,8 @@ export type Database = {
           debt_target?: string | null
           description?: string | null
           id?: string
+          installment_number?: number | null
+          installment_plan_id?: string | null
           kind?: string
           occurred_at?: string
           recurring_template_id?: string | null
@@ -432,6 +494,13 @@ export type Database = {
             columns: ["credit_card_id"]
             isOneToOne: false
             referencedRelation: "credit_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_installment_plan_id_fkey"
+            columns: ["installment_plan_id"]
+            isOneToOne: false
+            referencedRelation: "installment_plans"
             referencedColumns: ["id"]
           },
           {
@@ -602,10 +671,12 @@ export type Ticker            = Database['public']['Tables']['tickers']['Row']
 export type RecurringTemplate = Database['public']['Tables']['recurring_templates']['Row']
 export type ScheduledEvent    = Database['public']['Tables']['scheduled_events']['Row']
 export type CategoryRow       = Database['public']['Tables']['categories']['Row']
+export type InstallmentPlan   = Database['public']['Tables']['installment_plans']['Row']
 
 // Application-level string literal types (values used in code)
-export type AccountType      = 'BANK' | 'WALLET'
-export type TransactionKind  = 'EXPENSE' | 'INCOME' | 'TRANSFER' | 'CARD_PAYMENT' | 'RECTIFICATION'
-export type InstrumentKind   = 'CEDEAR' | 'STOCK_AR' | 'BOND_AR' | 'NOTE_AR' | 'CORP_AR' | 'STOCK_USA' | 'ADR_USA'
-export type PaydayKind       = 'DAY_OF_MONTH' | 'NTH_BUSINESS_DAY'
-export type ScheduleKind     = 'DAY_OF_MONTH' | 'NTH_BUSINESS_DAY'
+export type AccountType           = 'BANK' | 'WALLET'
+export type TransactionKind       = 'EXPENSE' | 'INCOME' | 'TRANSFER' | 'CARD_PAYMENT' | 'RECTIFICATION'
+export type InstrumentKind        = 'CEDEAR' | 'STOCK_AR' | 'BOND_AR' | 'NOTE_AR' | 'CORP_AR' | 'STOCK_USA' | 'ADR_USA'
+export type PaydayKind            = 'DAY_OF_MONTH' | 'NTH_BUSINESS_DAY'
+export type ScheduleKind          = 'DAY_OF_MONTH' | 'NTH_BUSINESS_DAY'
+export type InstallmentPlanStatus = 'ACTIVE' | 'COMPLETED' | 'CANCELED'

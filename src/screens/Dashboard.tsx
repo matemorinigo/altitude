@@ -22,7 +22,9 @@ import { usePendingEvents, useLastConfirmedPayday } from '../hooks/useScheduledE
 import { useProfile } from '../hooks/useProfile'
 import { useIsDesktop } from '../hooks/useIsDesktop'
 import { ensureScheduledEvents, nextPaydayDate, cycleProgress } from '../lib/payday'
+import { ensureInstallments } from '../lib/installments'
 import { needsStatementClose } from '../lib/cardCycle'
+import { useToast } from '../context/ToastContext'
 import { getToday } from '../lib/time'
 import { fmt } from '../lib/format'
 import { isSpendTx } from '../lib/transactions'
@@ -38,6 +40,7 @@ export function Dashboard() {
   const [editTx, setEditTx]                 = useState<TransactionWithRefs | null>(null)
   const isDesktop                       = useIsDesktop()
   const qc                              = useQueryClient()
+  const toast                           = useToast()
 
   const { data: profile   }  = useProfile()
   const { data: accounts = [] } = useAccounts()
@@ -76,9 +79,28 @@ export function Dashboard() {
   const { intStr: cardI, centStr: cardC } = fmt(cardDebt)
   const { intStr: realI, centStr: realC } = fmt(real)
 
+  const runInstallments = () => {
+    ensureInstallments(today).then(({ posted, retained }) => {
+      if (posted > 0) {
+        qc.invalidateQueries({ queryKey: ['transactions'] })
+        qc.invalidateQueries({ queryKey: ['credit_cards'] })
+        qc.invalidateQueries({ queryKey: ['installment_plans'] })
+      }
+      if (posted > 0 || retained > 0) {
+        toast(
+          posted > 0
+            ? `CUOTAS · ${posted} POSTEADA${posted > 1 ? 'S' : ''}${retained > 0 ? ` · ${retained} RETENIDA(S)` : ''}`
+            : `CUOTAS · ${retained} RETENIDA(S) POR CIERRE PENDIENTE`,
+          'var(--amb)',
+        )
+      }
+    }).catch(() => { /* silencioso */ })
+  }
+
   useEffect(() => {
     ensureScheduledEvents(today)
       .then(() => qc.invalidateQueries({ queryKey: ['scheduled_events'] }))
+      .then(runInstallments)
       .catch(() => { /* silencioso */ })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -120,7 +142,7 @@ export function Dashboard() {
       {cardToClose && !showLog && (
         <CardClosePromptModal
           card={cardToClose}
-          onClose={() => setCardToClose(null)}
+          onClose={() => { setCardToClose(null); runInstallments() }}
         />
       )}
       {transferFrom && (
